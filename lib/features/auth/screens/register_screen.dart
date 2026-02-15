@@ -26,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
             DropdownButtonFormField(
               value: selectedRole,
-              items: ["Owner", "Vet", "Caretaker"]
+              items: ["Owner", "Veterianarian", "Caretaker"]
                   .map((role) => DropdownMenuItem(
                         value: role,
                         child: Text(role),
