@@ -5,7 +5,6 @@ import 'package:frontend/features/dashboard/caretaker_dashboard.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
 import 'package:frontend/features/dashboard/vet_dashboard.dart';
 import 'package:frontend/features/auth/screens/register_screen.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatelessWidget {

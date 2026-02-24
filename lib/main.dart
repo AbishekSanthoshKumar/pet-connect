@@ -24,7 +24,7 @@ class PetConnectApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.teal,
         ),
-        home: const AuthChecker(),
+        home: const VetDashboard(),
       ),
     );
   }
