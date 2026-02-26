@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/auth/screens/login_screen.dart';
+import 'package:frontend/features/booking/screens/booking_page.dart';
+import 'package:frontend/features/booking/screens/my_bookings_page.dart';
+import 'package:frontend/features/pets/screens/pet_management_page.dart';
+import 'package:frontend/features/profile/screens/trust_score_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // --- Custom Dark Color Palette ---
@@ -55,7 +59,6 @@ class OwnerDashboard extends StatelessWidget {
                     children: [
                       const SizedBox(height: kToolbarHeight),
 
-                      // Space for the app bar
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
@@ -140,28 +143,48 @@ class OwnerDashboard extends StatelessWidget {
           iconColor: Colors.blue,
           title: "Find Care",
           subtitle: "Book a vet or caretaker",
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BookingPage()),
+            );
+          },
         ),
         _ActionCard(
           icon: Icons.add,
           iconColor: Colors.green,
           title: "Add Pet",
           subtitle: "Register a new pet",
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PetManagementPage()),
+            );
+          },
         ),
         _ActionCard(
           icon: Icons.schedule,
           iconColor: _accentColor,
           title: "Schedule",
           subtitle: "View all bookings",
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyBookingsPage()),
+            );
+          },
         ),
         _ActionCard(
           icon: Icons.flash_on,
           iconColor: Colors.red,
           title: "Emergency",
           subtitle: "Get help now",
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BookingPage(isEmergencyMode: true)),
+            );
+          },
         ),
       ],
     );
@@ -214,12 +237,6 @@ class GlassyAppBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         color: Colors.white.withOpacity(0.1),
         boxShadow: [
-          // BoxShadow(
-          //   color: _lightShadowColor.withOpacity(0.2),
-          //   blurRadius: 8,
-          //   spreadRadius: 1,
-          //   offset: const Offset(-4, -4),
-          // ),
           BoxShadow(
             color: _darkShadowColor.withOpacity(0.5),
             blurRadius: 8,
@@ -257,7 +274,12 @@ class GlassyAppBar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const BookingPage(isEmergencyMode: true)),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
                         shape: RoundedRectangleBorder(
@@ -581,7 +603,12 @@ class _BookingsSection extends StatelessWidget {
                       ),
                     ),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MyBookingsPage()),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _containerColor,
                         foregroundColor: _primaryTextColor,
@@ -669,31 +696,20 @@ class _RecentActivitySection extends StatelessWidget {
     final List<Map<String, dynamic>> activities = [
       {
         'icon': Icons.check_circle,
-
         'color': Colors.green,
-
         'title': "Luna's grooming session completed",
-
         'time': '2 hours ago',
       },
-
       {
         'icon': Icons.arrow_upward,
-
         'color': Colors.blue,
-
         'title': "Dr. Chen's trust score increased to 94",
-
         'time': '1 day ago',
       },
-
       {
         'icon': Icons.warning_amber_rounded,
-
         'color': _accentColor,
-
         'title': "Max's vaccination due in 2 weeks",
-
         'time': '2 days ago',
       },
     ];
@@ -705,48 +721,35 @@ class _RecentActivitySection extends StatelessWidget {
             (activity) => NeumorphicGlassContainer(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-
                 child: Row(
                   children: [
                     Icon(activity['icon'], color: activity['color']),
-
                     const SizedBox(width: 16),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
                           Text(
                             activity['title'],
-
                             style: const TextStyle(
                               fontWeight: FontWeight.w500,
-
                               color: _primaryTextColor,
                             ),
                           ),
-
                           const SizedBox(height: 4),
-
                           Text(
                             activity['time'],
-
                             style: const TextStyle(
                               color: _secondaryTextColor,
-
                               fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                     ),
-
                     const Spacer(),
-
                     Icon(
                       Icons.more_horiz,
-
                       color: _secondaryTextColor.withOpacity(0.5),
                     ),
                   ],
@@ -829,12 +832,6 @@ class NeumorphicGlassContainer extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         color: color ?? Colors.white.withOpacity(0.1),
         boxShadow: [
-          // BoxShadow(
-          //   color: _lightShadowColor.withOpacity(0.2),
-          //   blurRadius: 8,
-          //   spreadRadius: 1,
-          //   offset: const Offset(-4, -4),
-          // ),
           BoxShadow(
             color: _darkShadowColor.withOpacity(0.5),
             blurRadius: 8,

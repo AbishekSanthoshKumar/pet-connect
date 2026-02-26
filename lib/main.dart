@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/auth/providers/login_provider.dart';
 import 'package:frontend/features/auth/screens/login_screen.dart';
+import 'package:frontend/features/auth/screens/register_screen.dart';
 import 'package:frontend/features/dashboard/caretaker_dashboard.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
 import 'package:frontend/features/dashboard/vet_dashboard.dart';
@@ -23,8 +24,14 @@ class PetConnectApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.teal,
+          primaryColor: const Color(0xFFF57C00),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFFF57C00),
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
         ),
-        home: const VetDashboard(),
+        home: const AuthChecker(),
       ),
     );
   }
@@ -83,8 +90,42 @@ class _AuthCheckerState extends State<AuthChecker> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/images/nature-bg.jpg"),
+            opacity: 0.5,
+            fit: BoxFit.cover,
+          ),
+          color: Colors.black,
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.pets,
+                size: 64,
+                color: Color(0xFFF57C00),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'PetConnect',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 16),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFFF57C00)),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
