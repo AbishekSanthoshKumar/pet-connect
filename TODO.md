@@ -1,11 +1,14 @@
-# Admin Dashboard Error Fixes - Progress Tracker
+# Owner Dashboard Enhancement & Profile Editing Task
 
-## Plan Steps:
-- [ ] Step 1: Implement GlassyAppBar in lib/shared/widgets/glassy_components.dart
-- [ ] Step 2: Fix duplicate _showCaretakerApplications and add _showAllBookingsSheet in lib/features/dashboard/admin_dashboard.dart
-- [ ] Step 3: Implement _RecentBookingsSection in lib/features/dashboard/admin_dashboard.dart
-- [ ] Step 4: Update null safety and mock data handling in modals
-- [ ] Step 5: Run flutter analyze and test
-- [ ] Step 6: Complete and verify all functionality
+## Steps to Complete:
 
-**Current status: Starting Step 1**
+- [x] Step 1: Create TODO.md (done)
+- [x] Step 2: Modify owner_dashboard.dart - Enhance GlassyAppBar (add emergency, notifications, profile popup)
+- [ ] Step 3: Modify owner_dashboard.dart - Add LayoutBuilder responsive layout & update action grid
+- [ ] Step 4: Modify owner_dashboard.dart - Add section headers & MyPetsSection
+- [ ] Step 5: Modify owner_dashboard.dart - Add BookingsSection & RecentActivitySection
+- [ ] Step 6: Modify owner_dashboard.dart - Add DidYouKnowSection & profile navigation import
+- [ ] Step 7: Create lib/features/profile/screens/profile_screen.dart for user profile editing
+- [ ] Step 8: Test all features (`flutter run`)
+- [ ] Step 9: Update TODO.md as completed
+

@@ -46,7 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
           "password": password,
         }),
       );
-
+      print("URL: http://localhost:5000/api/login");
+      print("STATUS: ${response.statusCode}");
+      print("BODY: ${response.body}");
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         final prefs = await SharedPreferences.getInstance();
@@ -55,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString("role", data["user"]["role"]);
 
         final role = data["user"]["role"];
-
+ 
         if (role == "OWNER") {
           Navigator.pushReplacement(
             context,
