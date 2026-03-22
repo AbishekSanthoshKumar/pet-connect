@@ -57,11 +57,14 @@ class _AuthCheckerState extends State<AuthChecker> {
 
     if (mounted) {
       if (role != null) {
-        _navigateToDashboard(role);
-      } else {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RegisterScreen()),
         );
       }
     }

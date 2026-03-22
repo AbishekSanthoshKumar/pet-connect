@@ -25,7 +25,7 @@ class ApiService {
     try {
       final response = await _dio.get(endpoint);
       return response;
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       // Handle DioError here
       throw Exception('Failed to load data: ${e.message}');
     } catch (e) {
@@ -37,7 +37,7 @@ class ApiService {
     try {
       final response = await _dio.post(endpoint, data: data);
       return response;
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       // Handle DioError here
       throw Exception('Failed to post data: ${e.message}');
     } catch (e) {

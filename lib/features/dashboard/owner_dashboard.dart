@@ -5,7 +5,9 @@ import 'package:frontend/features/booking/screens/booking_page.dart';
 import 'package:frontend/features/booking/screens/my_bookings_page.dart';
 import 'package:frontend/features/pets/screens/pet_management_page.dart';
 import 'package:frontend/features/profile/screens/trust_score_page.dart';
+import 'package:frontend/shared/widgets/glassy_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:frontend/core/logout_helper.dart';
 
 // --- Custom Dark Color Palette ---
 const Color _primaryTextColor = Colors.white;
@@ -223,8 +225,9 @@ class OwnerDashboard extends StatelessWidget {
 
 class GlassyAppBar extends StatelessWidget {
   final VoidCallback logout;
+  final bool showEmergency;
 
-  const GlassyAppBar({required this.logout, Key? key}) : super(key: key);
+  const GlassyAppBar({required this.logout, this.showEmergency = true, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -273,43 +276,44 @@ class GlassyAppBar extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const BookingPage(isEmergencyMode: true)),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: isMobile
-                            ? const EdgeInsets.all(8)
-                            : const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.flash_on,
-                            color: Colors.white,
-                            size: 16,
+                    if (showEmergency)
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const BookingPage(isEmergencyMode: true)),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          if (!isMobile) ...[
-                            const SizedBox(width: 4),
-                            const Text(
-                              "Emergency",
-                              style: TextStyle(color: Colors.white),
+                          padding: isMobile
+                              ? const EdgeInsets.all(8)
+                              : const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.flash_on,
+                              color: Colors.white,
+                              size: 16,
                             ),
+                            if (!isMobile) ...[
+                              const SizedBox(width: 4),
+                              const Text(
+                                "Emergency",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
+                    if (showEmergency) const SizedBox(width: 10),
                     _AppBarIcon(
                       icon: Icons.notifications_none,
                       onPressed: () {},
@@ -802,55 +806,3 @@ class _DidYouKnowSection extends StatelessWidget {
   }
 }
 
-// A Reusable Neumorphic/Glass Container
-class NeumorphicGlassContainer extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final EdgeInsetsGeometry? margin;
-  final Color? color;
-  final DecorationImage? image;
-
-  const NeumorphicGlassContainer({
-    required this.child,
-    this.width,
-    this.height,
-    this.margin,
-    this.color,
-    this.image,
-    Key? key,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      margin: margin,
-      decoration: BoxDecoration(
-        image: image,
-        borderRadius: BorderRadius.circular(20),
-        color: color ?? Colors.white.withOpacity(0.1),
-        boxShadow: [
-          BoxShadow(
-            color: _darkShadowColor.withOpacity(0.5),
-            blurRadius: 8,
-            spreadRadius: 1,
-            offset: const Offset(4, 4),
-          ),
-        ],
-        border: Border.all(
-          color: _lightShadowColor.withOpacity(0.2),
-          width: 0.5,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
-          child: child,
-        ),
-      ),
-    );
-  }
-}

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/shared/widgets/action_card.dart';
-import 'package:frontend/features/dashboard/owner_dashboard.dart';
+import 'package:frontend/shared/widgets/glassy_components.dart';
 import 'dart:ui';
 import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +15,7 @@ class VetDashboard extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight + 40),
-        child: GlassyAppBar(logout: () => logoutUser(context)),
+        child: GlassyAppBar(logout: () => logoutUser(context), showEmergency: false),
       ),
       body: Stack(
         children: [
@@ -89,7 +89,7 @@ class _VetActionGrid extends StatelessWidget {
         ActionCard(icon: Icons.note_alt, iconColor: Colors.green, title: "Visit Summary", subtitle: "Write treatment notes", onTap: () => _showVisitSummaryDialog(context)),
         ActionCard(icon: Icons.pets, iconColor: Colors.orange, title: "Pet Details", subtitle: "View pet information", onTap: () => _showPetDetailsPage(context)),
         ActionCard(icon: Icons.event_available, iconColor: Colors.teal, title: "Availability", subtitle: "Set working hours", onTap: () => _showAvailabilityDialog(context)),
-        ActionCard(icon: Icons.attach_money, iconColor: Colors.purple, title: "Earnings", subtitle: "Track income", onTap: () {}),
+        ActionCard(icon: Icons.attach_money, iconColor: Colors.purple, title: "Earnings", subtitle: "Track income", onTap: () => _showEarningsSheet(context)),
       ],
     );
   }
@@ -110,8 +110,46 @@ class _VetActionGrid extends StatelessWidget {
     showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (context) => _PetDetailsSheet());
   }
 
+  void _showEarningsSheet(BuildContext context) {
+    showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (context) => _EarningsSheet());
+  }
+
   void _showAvailabilityDialog(BuildContext context) {
     showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (context) => _AvailabilitySheet());
+  }
+}
+
+class _EarningsSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final earnings = [
+      {'month': 'January', 'amount': '\₹1200', 'jobs': 15},
+      {'month': 'February', 'amount': '\₹1350', 'jobs': 18},
+      {'month': 'March', 'amount': '\₹1100', 'jobs': 14},
+    ];
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(color: Color(0xFF2B2A2A), borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      child: Column(children: [
+        Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2))),
+        const Padding(padding: EdgeInsets.all(20), child: Text('Earnings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white))),
+        Expanded(child: ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: earnings.length, itemBuilder: (context, index) {
+          final earning = earnings[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(earning['month']! as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('${earning['jobs']} jobs', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ]),
+              Text(earning['amount']! as String, style: const TextStyle(color: Color(0xFFF57C00), fontWeight: FontWeight.bold, fontSize: 18)),
+            ]),
+          );
+        })),
+      ]),
+    );
   }
 }
 
@@ -221,35 +259,137 @@ class _VisitSummarySheet extends StatefulWidget {
 
 class _VisitSummarySheetState extends State<_VisitSummarySheet> {
   String _selectedPet = 'Max';
-  final TextEditingController _notesController = TextEditingController();
+  String _selectedOwner = 'Alex Johnson';
+  final TextEditingController _diagnosisController = TextEditingController();
   final TextEditingController _prescriptionController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+  DateTime? _followUpDate;
+  bool _isSaved = false;
+
+  final List<Map<String, String>> _petOwners = [
+    {'pet': 'Max', 'owner': 'Alex Johnson', 'phone': '+91 98765 43210'},
+    {'pet': 'Luna', 'owner': 'Sarah Miller', 'phone': '+91 98765 43211'},
+    {'pet': 'Charlie', 'owner': 'Mike Davis', 'phone': '+91 98765 43212'},
+  ];
+
+  @override
+  void dispose() {
+    _diagnosisController.dispose();
+    _prescriptionController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _saveAndSendToOwner() {
+    if (_diagnosisController.text.isEmpty || _prescriptionController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in diagnosis and prescription'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaved = true;
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2B2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [Icon(Icons.check_circle, color: Colors.green, size: 28), SizedBox(width: 8), Text('Sent to Owner!', style: TextStyle(color: Colors.white))]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Visit summary has been saved and sent to:', style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Pet: $_selectedPet', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text('Owner: $_selectedOwner', style: const TextStyle(color: Colors.white)),
+                Text('Phone: ${_petOwners.firstWhere((p) => p['pet'] == _selectedPet)['phone']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            const Row(children: [Icon(Icons.email, color: Colors.green, size: 16), SizedBox(width: 8), Text('Email sent successfully!', style: TextStyle(color: Colors.green, fontSize: 12))]),
+            const Row(children: [Icon(Icons.message, color: Colors.green, size: 16), SizedBox(width: 8), Text('SMS notification sent!', style: TextStyle(color: Colors.green, fontSize: 12))]),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text('Done', style: TextStyle(color: Color(0xFFF57C00))),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
+      height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(color: Color(0xFF2B2A2A), borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       child: Column(children: [
         Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2))),
-        const Padding(padding: EdgeInsets.all(20), child: Text('Visit Summary', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white))),
+        Padding(padding: const EdgeInsets.all(20), child: Row(children: [
+          const Expanded(child: Text('Visit Summary', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white))),
+          if (_isSaved) Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(20)), child: const Row(children: [Icon(Icons.check, color: Colors.green, size: 16), SizedBox(width: 4), Text('Sent', style: TextStyle(color: Colors.green, fontSize: 12))])),
+        ])),
         Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Select Pet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Wrap(spacing: 10, children: ['Max', 'Luna', 'Charlie'].map((pet) => ChoiceChip(label: Text(pet), selected: _selectedPet == pet, onSelected: (selected) => setState(() => _selectedPet = pet), selectedColor: const Color(0xFFF57C00), backgroundColor: Colors.white.withOpacity(0.1))).toList()),
+          Wrap(spacing: 10, children: _petOwners.map((petData) => ChoiceChip(
+            label: Text(petData['pet']!),
+            selected: _selectedPet == petData['pet'],
+            onSelected: (selected) {
+              setState(() {
+                _selectedPet = petData['pet']!;
+                _selectedOwner = petData['owner']!;
+                _isSaved = false;
+              });
+            },
+            selectedColor: const Color(0xFFF57C00),
+            backgroundColor: Colors.white.withOpacity(0.1),
+          )).toList()),
+          const SizedBox(height: 16),
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.blue.withOpacity(0.3))), child: Row(children: [const Icon(Icons.person, color: Colors.blue), const SizedBox(width: 12), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Owner: $_selectedOwner', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), Text(_petOwners.firstWhere((p) => p['pet'] == _selectedPet)['phone']!, style: const TextStyle(color: Colors.white70, fontSize: 12))])])),
           const SizedBox(height: 20),
-          const Text('Diagnosis', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Text('Diagnosis *', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          TextField(controller: _notesController, maxLines: 3, style: const TextStyle(color: Colors.white), decoration: InputDecoration(hintText: 'Enter diagnosis...', hintStyle: const TextStyle(color: Colors.white38), filled: true, fillColor: Colors.white.withOpacity(0.1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+          TextField(controller: _diagnosisController, maxLines: 3, style: const TextStyle(color: Colors.white), decoration: InputDecoration(hintText: 'Enter diagnosis...', hintStyle: const TextStyle(color: Colors.white38), filled: true, fillColor: Colors.white.withOpacity(0.1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
           const SizedBox(height: 20),
-          const Text('Prescription', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Text('Prescription *', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           TextField(controller: _prescriptionController, maxLines: 3, style: const TextStyle(color: Colors.white), decoration: InputDecoration(hintText: 'Enter prescription...', hintStyle: const TextStyle(color: Colors.white38), filled: true, fillColor: Colors.white.withOpacity(0.1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
           const SizedBox(height: 20),
+          const Text('Additional Notes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          TextField(controller: _notesController, maxLines: 2, style: const TextStyle(color: Colors.white), decoration: InputDecoration(hintText: 'Any additional instructions...', hintStyle: const TextStyle(color: Colors.white38), filled: true, fillColor: Colors.white.withOpacity(0.1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+          const SizedBox(height: 20),
           const Text('Follow-up Date', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: const Row(children: [Icon(Icons.calendar_today, color: Colors.white70), SizedBox(width: 12), Text('Select date...', style: TextStyle(color: Colors.white70))])),
+          GestureDetector(
+            onTap: () async {
+              final date = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 7)), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 90)), builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: Color(0xFFF57C00))), child: child!));
+              if (date != null) setState(() => _followUpDate = date);
+            },
+            child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: Row(children: [const Icon(Icons.calendar_today, color: Colors.white70), const SizedBox(width: 12), Text(_followUpDate != null ? '${_followUpDate!.day}/${_followUpDate!.month}/${_followUpDate!.year}' : 'Select follow-up date...', style: TextStyle(color: _followUpDate != null ? Colors.white : Colors.white70))])),
+          ),
+          const SizedBox(height: 20),
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.orange.withOpacity(0.3))), child: const Row(children: [Icon(Icons.info_outline, color: Colors.orange, size: 20), SizedBox(width: 12), Expanded(child: Text('Summary will be sent to pet owner via email and SMS after saving.', style: TextStyle(color: Colors.orange, fontSize: 12)))])),
           const SizedBox(height: 30),
-          SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: () {}, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF57C00), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Save Visit Summary', style: TextStyle(fontWeight: FontWeight.bold)))),
+          Row(children: [
+            Expanded(child: SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: () { _diagnosisController.clear(); _prescriptionController.clear(); _notesController.clear(); setState(() { _followUpDate = null; _isSaved = false; }); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800], shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Clear', style: TextStyle(fontWeight: FontWeight.bold))))),
+            const SizedBox(width: 16),
+            Expanded(flex: 2, child: SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _saveAndSendToOwner, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF57C00), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Save & Send to Owner', style: TextStyle(fontWeight: FontWeight.bold))))),
+          ]),
           const SizedBox(height: 20),
         ]))),
       ]),

@@ -4,8 +4,10 @@ import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:frontend/features/dashboard/caretaker_dashboard.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
 import 'package:frontend/features/dashboard/vet_dashboard.dart';
+import 'package:frontend/features/dashboard/admin_dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -14,10 +16,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  String selectedRole = "Owner";
+  String selectedRole = "OWNER";
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -26,37 +29,80 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
-    // Simulate registration and navigate to dashboard
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_role', selectedRole);
+  if (_passwordController.text != _confirmPasswordController.text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Passwords do not match")),
+    );
+    return;
+  }
 
-    if (mounted) {
+  final url = Uri.parse("http://10.0.2.2:3000/api/users/register");
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "name": _nameController.text,
+        "email": _emailController.text,
+        "phone": _phoneController.text,
+        "username": _usernameController.text,
+        "password": _passwordController.text,
+        "role": selectedRole.toUpperCase()
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', selectedRole);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Registration Successful")),
+      );
+
       Widget dashboard;
+
       switch (selectedRole) {
-        case "Owner":
+        case "OWNER":
           dashboard = const OwnerDashboard();
           break;
-        case "Vet":
+        case "VET":
           dashboard = const VetDashboard();
           break;
-        case "Caretaker":
+        case "CARETAKER":
           dashboard = const CaretakerDashboard();
+          break;
+        case "ADMIN":
+          dashboard = const AdminDashboard();
           break;
         default:
           dashboard = const LoginScreen();
       }
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => dashboard),
       );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data["message"] ?? "Registration failed")),
+      );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e")),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -144,8 +190,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               _buildTextField(
                                 controller: _phoneController,
                                 label: "Phone Number",
-                                icon: Icons.phone_outlined,
+                                icon: Icons.phone,
                                 keyboardType: TextInputType.phone,
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Username Field
+                              _buildTextField(
+                                controller: _usernameController,
+                                label: "Username",
+                                icon: Icons.person_outline,
+                                keyboardType: TextInputType.text,
                               ),
                               const SizedBox(height: 16),
 
@@ -301,6 +356,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildRoleOption("Owner", "🐾"),
           _buildRoleOption("Vet", "👨‍⚕️"),
           _buildRoleOption("Caretaker", "🏠"),
+          _buildRoleOption("Admin", "👨‍💼"),
         ],
       ),
     );

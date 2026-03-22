@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/features/dashboard/owner_dashboard.dart';
+import 'package:frontend/shared/widgets/glassy_components.dart';
 
 const Color _primaryTextColor = Colors.white;
 const Color _secondaryTextColor = Colors.white70;
