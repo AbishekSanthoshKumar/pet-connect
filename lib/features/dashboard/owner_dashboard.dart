@@ -4,10 +4,8 @@ import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:frontend/features/booking/screens/booking_page.dart';
 import 'package:frontend/features/booking/screens/my_bookings_page.dart';
 import 'package:frontend/features/pets/screens/pet_management_page.dart';
-import 'package:frontend/features/profile/screens/trust_score_page.dart';
 import 'package:frontend/shared/widgets/glassy_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:frontend/core/logout_helper.dart';
 
 // --- Custom Dark Color Palette ---
 const Color _primaryTextColor = Colors.white;
