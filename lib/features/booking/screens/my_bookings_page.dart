@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
+import 'package:frontend/services/api_service.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({super.key});
@@ -9,13 +12,16 @@ class MyBookingsPage extends StatefulWidget {
   _MyBookingsPageState createState() => _MyBookingsPageState();
 }
 
-class _MyBookingsPageState extends State<MyBookingsPage> with SingleTickerProviderStateMixin {
+class _MyBookingsPageState extends State<MyBookingsPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    loadBookings(); // ✅ ADD
   }
 
   @override
@@ -42,10 +48,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> with SingleTickerProvid
         ),
         title: const Text(
           'My Bookings',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -72,14 +75,16 @@ class _MyBookingsPageState extends State<MyBookingsPage> with SingleTickerProvid
             ),
           ),
           SafeArea(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBookingList(_upcomingBookings, 'upcoming'),
-                _buildBookingList(_completedBookings, 'completed'),
-                _buildBookingList(_cancelledBookings, 'cancelled'),
-              ],
-            ),
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildBookingList(_upcomingBookings, 'upcoming'),
+                      _buildBookingList(_completedBookings, 'completed'),
+                      _buildBookingList(_cancelledBookings, 'cancelled'),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -93,15 +98,21 @@ class _MyBookingsPageState extends State<MyBookingsPage> with SingleTickerProvid
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              type == 'upcoming' ? Icons.calendar_today : 
-              type == 'completed' ? Icons.check_circle_outline : Icons.cancel_outlined,
+              type == 'upcoming'
+                  ? Icons.calendar_today
+                  : type == 'completed'
+                  ? Icons.check_circle_outline
+                  : Icons.cancel_outlined,
               size: 64,
               color: Colors.white30,
             ),
             const SizedBox(height: 16),
             Text(
-              type == 'upcoming' ? 'No upcoming bookings' :
-              type == 'completed' ? 'No completed bookings' : 'No cancelled bookings',
+              type == 'upcoming'
+                  ? 'No upcoming bookings'
+                  : type == 'completed'
+                  ? 'No completed bookings'
+                  : 'No cancelled bookings',
               style: const TextStyle(color: Colors.white70, fontSize: 18),
             ),
           ],
@@ -119,107 +130,67 @@ class _MyBookingsPageState extends State<MyBookingsPage> with SingleTickerProvid
     );
   }
 
-  final List<Map<String, dynamic>> _upcomingBookings = [
-    {
-      'id': '1',
-      'providerName': 'Dr. Sarah Chen',
-      'providerType': 'Vet',
-      'specialization': 'General Medicine',
-      'petName': 'Max',
-      'date': 'Feb 15, 2026',
-      'time': '10:00 AM',
-      'status': 'confirmed',
-      'price': 400,
-      'image': 'assets/images/dog_and_cat.jpg',
-      'trustScore': 98,
-      'address': '123 Pet Clinic, Downtown',
-      'notes': 'Annual checkup',
-    },
-    {
-      'id': '2',
-      'providerName': 'James Wilson',
-      'providerType': 'Caretaker',
-      'specialization': 'Dog Walking',
-      'petName': 'Max',
-      'date': 'Feb 18, 2026',
-      'time': '2:00 PM',
-      'status': 'confirmed',
-      'price': 750,
-      'image': 'assets/images/dog_and_cat.jpg',
-      'trustScore': 94,
-      'address': 'Home Service',
-      'notes': 'Morning and evening walk',
-    },
-    {
-      'id': '3',
-      'providerName': 'Maria Garcia',
-      'providerType': 'Caretaker',
-      'specialization': 'Pet Grooming',
-      'petName': 'Luna',
-      'date': 'Feb 20, 2026',
-      'time': '11:00 AM',
-      'status': 'pending',
-      'price': 360,
-      'image': 'assets/images/dog_and_cat.jpg',
-      'trustScore': 97,
-      'address': '456 Grooming Salon, West Side',
-      'notes': 'Full grooming package',
-    },
-  ];
+  List<Map<String, dynamic>> _upcomingBookings = [];
+  List<Map<String, dynamic>> _completedBookings = [];
+  List<Map<String, dynamic>> _cancelledBookings = [];
 
-  final List<Map<String, dynamic>> _completedBookings = [
-    {
-      'id': '4',
-      'providerName': 'Dr. Emily Watson',
-      'providerType': 'Vet',
-      'specialization': 'Dental Care',
-      'petName': 'Luna',
-      'date': 'Jan 28, 2026',
-      'time': '3:00 PM',
-      'status': 'completed',
-      'price': 550,
-      'image': 'assets/images/dog_and_cat.jpg',
-      'trustScore': 92,
-      'address': '789 Pet Dental Center',
-      'notes': 'Teeth cleaning completed',
-      'reviewGiven': true,
-    },
-    {
-      'id': '5',
-      'providerName': 'James Wilson',
-      'providerType': 'Caretaker',
-      'specialization': 'Overnight Care',
-      'petName': 'Max',
-      'date': 'Jan 20-22, 2026',
-      'time': 'Full Weekend',
-      'status': 'completed',
-      'price': 750,
-      'image': 'assets/images/dog_and_cat.jpg',
-      'trustScore': 94,
-      'address': 'Home Service',
-      'notes': 'Weekend pet sitting',
-      'reviewGiven': false,
-    },
-  ];
+  bool isLoading = true;
 
-  final List<Map<String, dynamic>> _cancelledBookings = [
-    {
-      'id': '6',
-      'providerName': 'David Brown',
-      'providerType': 'Caretaker',
-      'specialization': 'Overnight Care',
-      'petName': 'Max',
-      'date': 'Feb 10, 2026',
-      'time': '5:00 PM',
-      'status': 'cancelled',
-      'price': 499,
-      'image': 'assets/images/dog_and_cat.jpg',
-      'trustScore': 89,
-      'address': 'Home Service',
-      'notes': 'Cancelled due to schedule conflict',
-      'cancelledBy': 'You',
-    },
-  ];
+  Future<void> loadBookings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt("user_id");
+
+    if (userId == null) return;
+
+    try {
+      final data = await ApiService.getBookings(userId);
+
+      List<Map<String, dynamic>> upcoming = [];
+      List<Map<String, dynamic>> completed = [];
+      List<Map<String, dynamic>> cancelled = [];
+
+      for (var b in data) {
+        DateTime parsedDate = DateTime.parse(b["date"]);
+
+        String formattedDate = DateFormat("MMM dd, yyyy").format(parsedDate);
+        String formattedTime = DateFormat("hh:mm a").format(parsedDate);
+
+        final booking = {
+          "id": b["id"].toString(),
+          "providerName": b["provider"]?["name"] ?? "Unknown",
+          "providerType": b["provider"]?["type"] ?? "",
+          "specialization": b["provider"]?["specialization"] ?? "",
+          "petName": b["pet"]?["name"] ?? "",
+          "date": formattedDate,
+          "time": formattedTime,
+          "status": b["status"],
+          "price": b["provider"]?["price"] ?? 0,
+          "image": "assets/images/dog_and_cat.jpg",
+          "trustScore": b["provider"]?["trustScore"] ?? 0,
+          "address": "Service Location",
+          "notes": b["notes"] ?? "",
+          "reviewGiven": false,
+        };
+
+        if (b["status"] == "pending" || b["status"] == "confirmed") {
+          upcoming.add(booking);
+        } else if (b["status"] == "completed") {
+          completed.add(booking);
+        } else if (b["status"] == "cancelled") {
+          cancelled.add(booking);
+        }
+      }
+
+      setState(() {
+        _upcomingBookings = upcoming;
+        _completedBookings = completed;
+        _cancelledBookings = cancelled;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+    }
+  }
 }
 
 class _BookingCard extends StatelessWidget {
@@ -232,7 +203,7 @@ class _BookingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isUpcoming = type == 'upcoming';
     final bool isCompleted = type == 'completed';
-    
+
     Color statusColor;
     String statusText;
     switch (booking['status']) {
@@ -310,7 +281,10 @@ class _BookingCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -327,7 +301,7 @@ class _BookingCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Pet Info with Trust Score
                 Row(
                   children: [
@@ -339,9 +313,14 @@ class _BookingCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getTrustScoreColor(booking['trustScore']).withOpacity(0.2),
+                        color: _getTrustScoreColor(
+                          booking['trustScore'],
+                        ).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -367,18 +346,26 @@ class _BookingCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Date & Time
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Colors.white70,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       booking['date'],
                       style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.access_time, size: 16, color: Colors.white70),
+                    const Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.white70,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       booking['time'],
@@ -387,22 +374,29 @@ class _BookingCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Address
                 Row(
                   children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.white70),
+                    const Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: Colors.white70,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         booking['address'],
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Notes
                 Row(
                   children: [
@@ -411,19 +405,30 @@ class _BookingCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         booking['notes'],
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Price
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
-                    Text('Amount: ₹${booking['price']}', style: const TextStyle(color: Color(0xFFF57C00), fontWeight: FontWeight.bold),),
+                    Text(
+                      'Amount: ₹${booking['price']}',
+                      style: const TextStyle(
+                        color: Color(0xFFF57C00),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 16),
                     if (isUpcoming) ...[
                       ElevatedButton(
                         onPressed: () {},
@@ -435,14 +440,36 @@ class _BookingCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          // Say not possible now
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text("Sorry"),
+                                content: const Text(
+                                  "This action is restricted at the moment!.",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text("OK"),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFF57C00),
                         ),
                         child: const Text('Reschedule'),
                       ),
+                      SizedBox(width: 16),
                     ],
-                    if (isCompleted && booking['reviewGiven'] == false)
+                    if (isCompleted && booking['reviewGiven'] == false) ...[
                       ElevatedButton(
                         onPressed: () {},
                         style: ElevatedButton.styleFrom(
@@ -450,14 +477,25 @@ class _BookingCard extends StatelessWidget {
                         ),
                         child: const Text('Leave Review'),
                       ),
-                    if (booking['reviewGiven'] == true)
+                      SizedBox(width: 16),
+                    ],
+                    if (booking['reviewGiven'] == true) ...[
                       const Row(
                         children: [
-                          Icon(Icons.verified_user, color: Colors.green, size: 18),
+                          Icon(
+                            Icons.verified_user,
+                            color: Colors.green,
+                            size: 18,
+                          ),
                           SizedBox(width: 4),
-                          Text('Review Given', style: TextStyle(color: Colors.green)),
+                          Text(
+                            'Review Given',
+                            style: TextStyle(color: Colors.green),
+                          ),
                         ],
                       ),
+                      SizedBox(width: 16),
+                    ],
                   ],
                 ),
               ],

@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:frontend/core/api_service.dart';
 
 class LoginProvider with ChangeNotifier {
-  final ApiService _apiService = ApiService();
+  final ApiServices _apiService = ApiServices();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;

@@ -6,7 +6,7 @@ class ApiConfig {
       return "http://localhost:5000";
     } else {
       // Android emulator
-      return "http://10.0.2.2:5000";
+      return "http://192.168.1.6:5000";
     }
   }
 }// TODO Implement this library.

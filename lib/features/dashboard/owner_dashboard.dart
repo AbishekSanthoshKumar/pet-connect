@@ -1,21 +1,16 @@
-// ignore_for_file: unused_element
-
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:frontend/config/api_config.dart';
 import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:frontend/features/booking/screens/booking_page.dart';
 import 'package:frontend/features/booking/screens/my_bookings_page.dart';
 import 'package:frontend/features/pets/screens/pet_management_page.dart';
+import 'package:frontend/services/api_service.dart';
 import 'package:frontend/shared/widgets/glassy_components.dart';
+import 'package:frontend/shared/widgets/action_card.dart'; // ✅ USE YOUR REAL CARD
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 
-// --- Colors ---
 const Color _primaryTextColor = Colors.white;
 const Color _secondaryTextColor = Colors.white70;
-const MaterialColor _accentColor = Colors.orange;
 
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({Key? key}) : super(key: key);
@@ -26,6 +21,7 @@ class OwnerDashboard extends StatefulWidget {
 
 class _OwnerDashboardState extends State<OwnerDashboard> {
   String userName = "User";
+  int userId = 0;
   List<dynamic> pets = [];
   bool isLoading = true;
 
@@ -37,25 +33,19 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
   Future<void> loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
 
-    final response = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/api/login"),
-      headers: {
-        "Authorization": "Bearer $token",
-      },
-    );
+    userId = prefs.getInt("user_id") ?? 0;
+    userName = prefs.getString("name") ?? "User";
 
-    if (response.statusCode == 200) {
+    try {
+      final data = await ApiService.getPets(userId);
+
       setState(() {
-        userName = prefs.getString("name") ?? "User";
-        pets = jsonDecode(response.body);
+        pets = data;
         isLoading = false;
       });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
+    } catch (e) {
+      setState(() => isLoading = false);
     }
   }
 
@@ -74,10 +64,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight + 40),
-        child: GlassyAppBar(logout: () => _logout(context)),
-      ),
       body: Stack(
         children: [
           Container(
@@ -121,10 +107,11 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                 style: TextStyle(color: _secondaryTextColor),
                               ),
                               const SizedBox(height: 30),
+
                               _buildActionGrid(context),
+
                               const SizedBox(height: 30),
 
-                              /// PET SECTION
                               const Text(
                                 "My Pets",
                                 style: TextStyle(
@@ -152,6 +139,18 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                             : _MyPetsSection(pets: pets),
 
                         const SizedBox(height: 30),
+                        Center(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              fixedSize: Size(MediaQuery.of(context).size.width * 0.8, 30,),
+                            ),
+                            onPressed: () => _logout(context),
+                            child: Text("Logout"),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
@@ -169,48 +168,56 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       mainAxisSpacing: 20,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _ActionCard(
+        ActionCard(
           icon: Icons.search,
+          iconColor: Colors.orange,
           title: "Find Care",
-          backgroundAsset: "assets/images/find-care.jpg",
+          subtitle: "Book services",
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const BookingPage()),
+              MaterialPageRoute(builder: (context) => const BookingPage()),
             );
           },
         ),
-        _ActionCard(
+        ActionCard(
           icon: Icons.add,
+          iconColor: Colors.green,
           title: "Add Pet",
-          backgroundAsset: "assets/images/pet-dog.jpg",
-          onTap: () {
-            Navigator.push(
+          subtitle: "Manage pets",
+          onTap: () async {
+            await Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const PetManagementPage()),
+              MaterialPageRoute(
+                builder: (context) => const PetManagementPage(),
+              ),
             );
+            loadData();
           },
         ),
-        _ActionCard(
+        ActionCard(
           icon: Icons.schedule,
+          iconColor: Colors.blue,
           title: "Bookings",
-          backgroundAsset: "assets/images/dog_and_cat.jpg",
+          subtitle: "View bookings",
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const MyBookingsPage()),
+              MaterialPageRoute(builder: (context) => const MyBookingsPage()),
             );
           },
         ),
-        _ActionCard(
+        ActionCard(
           icon: Icons.flash_on,
+          iconColor: Colors.red,
           title: "Emergency",
-          backgroundAsset: "assets/images/nature-bg.jpg",
+          subtitle: "Quick help",
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => const BookingPage(isEmergencyMode: true)),
+                builder: (_) => const BookingPage(isEmergencyMode: true),
+              ),
             );
           },
         ),
@@ -218,8 +225,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 }
-
-/* ================= PET SECTION ================= */
 
 class _MyPetsSection extends StatelessWidget {
   final List<dynamic> pets;
@@ -267,51 +272,6 @@ class _MyPetsSection extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/* ================= ACTION CARD ================= */
-
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  final String? backgroundAsset;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.backgroundAsset,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return NeumorphicGlassContainer(
-      image: backgroundAsset != null
-          ? DecorationImage(
-              image: AssetImage(backgroundAsset!),
-              fit: BoxFit.cover,
-              opacity: 0.5,
-            )
-          : null,
-      child: InkWell(
-        onTap: onTap,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 30),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

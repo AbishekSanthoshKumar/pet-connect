@@ -53,33 +53,31 @@ class _AuthCheckerState extends State<AuthChecker> {
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final role = prefs.getString('user_role');
+    final isLoggedIn = prefs.getBool("isLoggedIn") ?? false;
 
-    if (mounted) {
-      if (role != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const RegisterScreen()),
-        );
-      }
+    final role = prefs.getString("role") ?? "";
+
+    if (isLoggedIn) {
+      print("role $role");
+      _navigateToDashboard(role);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
     }
   }
 
   void _navigateToDashboard(String role) {
     Widget dashboard;
     switch (role) {
-      case 'Owner':
+      case 'owner':
         dashboard = const OwnerDashboard();
         break;
-      case 'Vet':
+      case 'vet':
         dashboard = const VetDashboard();
         break;
-      case 'Caretaker':
+      case 'caretaker':
         dashboard = const CaretakerDashboard();
         break;
       default:

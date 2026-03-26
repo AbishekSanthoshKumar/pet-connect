@@ -1,13 +1,13 @@
 import 'package:dio/dio.dart';
 
-class ApiService {
+class ApiServices {
   final Dio _dio = Dio();
 
   // Replace with your API base URL
   final String _baseUrl = 'https://api.example.com/';
   String? _token;
 
-  ApiService() {
+  ApiServices() {
     _dio.options.baseUrl = _baseUrl;
   }
 

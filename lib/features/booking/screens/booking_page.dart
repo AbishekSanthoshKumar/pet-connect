@@ -3,10 +3,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
+import 'package:frontend/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookingPage extends StatefulWidget {
   final bool isEmergencyMode;
-  
+
   const BookingPage({super.key, this.isEmergencyMode = false});
 
   @override
@@ -23,6 +25,9 @@ class _BookingPageState extends State<BookingPage>
     super.initState();
     _startInEmergency = widget.isEmergencyMode;
     _tabController = TabController(length: 3, vsync: this);
+
+    loadProviders(); // ✅ ADD THIS
+
     _tabController.addListener(() {
       if (_tabController.index == 2) {
         setState(() {
@@ -92,8 +97,10 @@ class _BookingPageState extends State<BookingPage>
             child: Column(
               children: [
                 const SizedBox(height: 60),
-                Expanded(
-                  child: TabBarView(
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
                     controller: _tabController,
                     children: [
                       _buildProviderList('vet'),
@@ -131,7 +138,7 @@ class _BookingPageState extends State<BookingPage>
   }
 
   Widget _buildEmergencyList() {
-    final List<Map<String, dynamic>> emergencyCaretakers = 
+    final List<Map<String, dynamic>> emergencyCaretakers =
         _caretakers.where((c) => c['emergencyAvailable'] == true).toList();
 
     if (emergencyCaretakers.isEmpty) {
@@ -184,105 +191,42 @@ class _BookingPageState extends State<BookingPage>
   }
 
   void _showBookingDialog(
-      Map<String, dynamic> provider, String serviceType, bool isEmergency) {
+      Map<String, dynamic> provider,
+      String serviceType,
+      bool isEmergency) {
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => _BookingFormSheet(
         provider: provider,
+        providerId: provider["id"], // ✅ ADD THIS
         serviceType: serviceType,
         isEmergency: isEmergency,
       ),
     );
   }
 
-  final List<Map<String, dynamic>> _vetProviders = [
-    {
-      'name': 'Dr. Sarah Chen',
-      'specialization': 'General Medicine',
-      'experience': '12 years',
-      'image': 'assets/images/dog_and_cat.jpg',
-      'availability': 'Mon-Sat',
-      'price': 400,
-      'trustScore': 98,
-      'totalAssignments': 156,
-      'completedAssignments': 152,
-      'onTimeCount': 148,
-      'frequentClientCount': 45,
-    },
-    {
-      'name': 'Dr. Michael Roberts',
-      'specialization': 'Surgery',
-      'experience': '15 years',
-      'image': 'assets/images/dog_and_cat.jpg',
-      'availability': 'Mon-Fri',
-      'price': 600,
-      'trustScore': 95,
-      'totalAssignments': 203,
-      'completedAssignments': 195,
-      'onTimeCount': 190,
-      'frequentClientCount': 62,
-    },
-    {
-      'name': 'Dr. Emily Watson',
-      'specialization': 'Dental Care',
-      'experience': '8 years',
-      'image': 'assets/images/dog_and_cat.jpg',
-      'availability': 'Tue-Sat',
-      'price': 550,
-      'trustScore': 92,
-      'totalAssignments': 89,
-      'completedAssignments': 84,
-      'onTimeCount': 82,
-      'frequentClientCount': 28,
-    },
-  ];
+  List<Map<String, dynamic>> _vetProviders = [];
+  List<Map<String, dynamic>> _caretakers = [];
 
-  final List<Map<String, dynamic>> _caretakers = [
-    {
-      'name': 'James Wilson',
-      'specialization': 'Dog Walking & Sitting',
-      'experience': '5 years',
-      'image': 'assets/images/dog_and_cat.jpg',
-      'availability': 'Daily',
-      'price': 750,
-      'trustScore': 94,
-      'totalAssignments': 312,
-      'completedAssignments': 298,
-      'onTimeCount': 295,
-      'frequentClientCount': 78,
-      'emergencyAvailable': true,
-    },
-    {
-      'name': 'Maria Garcia',
-      'specialization': 'Pet Grooming',
-      'experience': '7 years',
-      'image': 'assets/images/dog_and_cat.jpg',
-      'availability': 'Mon-Sat',
-      'price': 360,
-      'trustScore': 97,
-      'totalAssignments': 425,
-      'completedAssignments': 418,
-      'onTimeCount': 415,
-      'frequentClientCount': 95,
-      'emergencyAvailable': true,
-    },
-    {
-      'name': 'David Brown',
-      'specialization': 'Overnight Care',
-      'experience': '3 years',
-      'image': 'assets/images/dog_and_cat.jpg',
-      'availability': 'Daily',
-      'price': 499,
-      'trustScore': 89,
-      'totalAssignments': 124,
-      'completedAssignments': 115,
-      'onTimeCount': 110,
-      'frequentClientCount': 32,
-      'emergencyAvailable': false,
-    },
-  ];
+  bool isLoading = true;
+
+  Future<void> loadProviders() async {
+    try {
+      final vets = await ApiService.getProviders("vet");
+      final caretakers = await ApiService.getProviders("caretaker");
+
+      setState(() {
+        _vetProviders = List<Map<String, dynamic>>.from(vets);
+        _caretakers = List<Map<String, dynamic>>.from(caretakers);
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+    }
+  }
 }
 
 class _ProviderCard extends StatelessWidget {
@@ -306,18 +250,18 @@ class _ProviderCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: isEmergency 
+        color: isEmergency
             ? Colors.red.withOpacity(0.15)
             : Colors.white.withOpacity(0.1),
         border: Border.all(
-          color: isEmergency 
+          color: isEmergency
               ? Colors.red.withOpacity(0.5)
               : Colors.white.withOpacity(0.2),
           width: isEmergency ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: isEmergency 
+            color: isEmergency
                 ? Colors.red.withOpacity(0.3)
                 : Colors.black.withOpacity(0.3),
             blurRadius: 8,
@@ -341,7 +285,7 @@ class _ProviderCard extends StatelessWidget {
                       height: 70,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
-                        image: DecorationImage(
+                        image: provider['image'] == null ? null : DecorationImage(
                           image: AssetImage(provider['image']),
                           fit: BoxFit.cover,
                         ),
@@ -454,14 +398,14 @@ class _ProviderCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
+                Wrap(
                   children: [
                     _InfoChip(icon: Icons.work_history, label: provider['experience']),
                     const SizedBox(width: 12),
                     _InfoChip(icon: Icons.schedule, label: provider['availability']),
                     if (provider['emergencyAvailable'] == true) ...[
                       const SizedBox(width: 12),
-                      _InfoChip(icon: Icons.emergency, label: '24/7', color: Colors.red),
+                      _InfoChip(icon: Icons.add_alert, label: '24/7', color: Colors.red),
                     ],
                     const Spacer(),
                     Text(
@@ -548,11 +492,11 @@ class _TrustScoreSheet extends StatelessWidget {
     final int onTimeCount = provider['onTimeCount'] ?? 0;
     final int frequentClientCount = provider['frequentClientCount'] ?? 0;
 
-    final double assignmentCompletion = totalAssignments > 0 
+    final double assignmentCompletion = totalAssignments > 0
         ? (completedAssignments / totalAssignments) * 25 : 0;
-    final double onTimeScore = completedAssignments > 0 
+    final double onTimeScore = completedAssignments > 0
         ? (onTimeCount / completedAssignments) * 25 : 0;
-    final double frequentVisits = frequentClientCount >= 30 
+    final double frequentVisits = frequentClientCount >= 30
         ? 20.0 : (frequentClientCount / 30) * 20;
     final double reliability = trustScore - assignmentCompletion - onTimeScore - frequentVisits;
     final double communication = reliability > 0 ? reliability * 0.5 : 0;
@@ -786,8 +730,14 @@ class _BookingFormSheet extends StatefulWidget {
   final Map<String, dynamic> provider;
   final String serviceType;
   final bool isEmergency;
+  final int providerId;
 
-  const _BookingFormSheet({required this.provider, required this.serviceType, this.isEmergency = false});
+  const _BookingFormSheet({
+    required this.provider,
+    required this.providerId, // ✅ ADD
+    required this.serviceType,
+    this.isEmergency = false,
+  });
 
   @override
   _BookingFormSheetState createState() => _BookingFormSheetState();
@@ -801,15 +751,49 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
   String _notes = 'Vaccination Done.';
   String _selectedPayment = 'Pay at Clinic';
 
+  List pets = [];
+  int? selectedPetId;
+
+  Map<String, int> petNameToId = {};
+
+  Future<void> loadPets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt("user_id");
+
+    if (userId == null) return;
+
+    final data = await ApiService.getPets(userId);
+
+    setState(() {
+      pets = data;
+
+      _pets = []; // reset
+      petNameToId.clear();
+
+      for (var pet in pets) {
+        _pets.add(pet["name"]); // ✅ UI uses this
+        petNameToId[pet["name"]] = pet["id"]; // ✅ mapping
+      }
+
+      // optional: auto select first pet
+      if (_pets.isNotEmpty) {
+        _petName = _pets.first;
+      }
+    });
+  }
+
   final List<String> _times = ['9:00 AM', '10:00 AM', '11:00 AM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
   final List<String> _emergencyTimes = ['Immediate', 'Within 1 hour', 'Within 2 hours', 'Within 4 hours'];
-  final List<String> _pets = ['Max', 'Luna', 'Charlie'];
+  List<String> _pets = [];
   final List<String> _careLevels = ['Low', 'Medium', 'High'];
   final List<String> _paymentOptions = [ 'Cash', 'UPI', 'Card Payment' ];
 
   @override
   void initState() {
     super.initState();
+
+    loadPets(); // ✅ ADD THIS
+
     if (widget.isEmergency) {
       _selectedDate = DateTime.now();
       _selectedTime = 'Immediate';
@@ -961,6 +945,12 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
   }
 
   Widget _buildPetSelector() {
+    if (_pets.isEmpty) {
+      return const Text(
+        "No pets found. Add a pet first.",
+        style: TextStyle(color: Colors.white70),
+      );
+    }
     return Wrap(
       spacing: 10,
       children: _pets.map((pet) => ChoiceChip(
@@ -1053,64 +1043,99 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
     );
   }
 
-  void _confirmBooking() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2B2A2A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            if (widget.isEmergency) const Icon(Icons.check_circle, color: Colors.red, size: 28),
-            const SizedBox(width: 8),
-            Text(widget.isEmergency ? 'Emergency Booked!' : 'Booking Confirmed!', style: TextStyle(color: widget.isEmergency ? Colors.red : Colors.white)),
+  Future<void> _confirmBooking() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt("user_id");
+
+    final petId = petNameToId[_petName];
+
+    if (userId == null || petId == null) {
+      print("userId $userId");
+      print("User or pet not found");
+      // show popup
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: const Text('User or pet not found'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
           ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.isEmergency ? 'Emergency request sent to ${widget.provider['name']}. They will contact you immediately!' : 'Your booking with ${widget.provider['name']} has been confirmed.',
+        ));
+      return;
+    }
+
+    try {
+      final res = await ApiService.createBooking({
+        "userId": userId,
+        "providerId": widget.providerId, // ✅ already passed
+        "petId": petId,                  // ✅ mapped from name
+        "date": _selectedDate.toIso8601String(),
+        "time": _selectedTime,
+        "status": widget.isEmergency ? "emergency" : "pending",
+        "notes": _notes,
+        "paymentMethod": _selectedPayment,
+      });
+
+      if (res["status"] == 200 || res["status"] == 201) {
+        if (!mounted) return;
+
+        // 🔥 KEEP YOUR EXISTING UI DIALOG
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF2B2A2A),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                if (widget.isEmergency)
+                  const Icon(Icons.check_circle, color: Colors.red, size: 28),
+                const SizedBox(width: 8),
+                Text(
+                  widget.isEmergency
+                      ? 'Emergency Booked!'
+                      : 'Booking Confirmed!',
+                  style: TextStyle(
+                      color:
+                      widget.isEmergency ? Colors.red : Colors.white),
+                ),
+              ],
+            ),
+            content: Text(
+              widget.isEmergency
+                  ? 'Emergency request sent to ${widget.provider['name']}'
+                  : 'Booking confirmed with ${widget.provider['name']}',
               style: const TextStyle(color: Colors.white70),
             ),
-            const SizedBox(height: 16),
-            if (!widget.isEmergency) Text('Date: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}', style: const TextStyle(color: Colors.white)),
-            Text(widget.isEmergency ? 'Response: $_selectedTime' : 'Time: $_selectedTime', style: const TextStyle(color: Colors.white)),
-            Text('Pet: $_petName', style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Payment: $_selectedPayment', style: const TextStyle(color: Colors.white)),
-            Text('Amount: ₹${widget.provider['price']}', style: const TextStyle(color: Color(0xFFF57C00), fontWeight: FontWeight.bold)),
-            if (widget.isEmergency) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  'Done',
+                  style: TextStyle(
+                      color: widget.isEmergency
+                          ? Colors.red
+                          : const Color(0xFFF57C00)),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.phone, color: Colors.red, size: 16),
-                    SizedBox(width: 8),
-                    Text('Keep your phone nearby!', style: TextStyle(color: Colors.red, fontSize: 12)),
-                  ],
-                ),
-              ),
+              )
             ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerDashboard()));
-            },
-            child: Text('Done', style: TextStyle(color: widget.isEmergency ? Colors.red : const Color(0xFFF57C00))),
           ),
-        ],
-      ),
-    );
+        );
+      } else {
+        print("Something went wrong");
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 }
