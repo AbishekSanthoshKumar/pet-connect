@@ -9,17 +9,16 @@ class ApiService {
   /* ================= AUTH ================= */
 
   static Future<Map<String, dynamic>> login(
-      String email, String password) async {
+    String email,
+    String password,
+  ) async {
     final res = await http.post(
       Uri.parse("$baseUrl/auth/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
     );
 
-    return {
-      "status": res.statusCode,
-      "data": jsonDecode(res.body),
-    };
+    return {"status": res.statusCode, "data": jsonDecode(res.body)};
   }
 
   static Future<dynamic> register(Map<String, dynamic> data) async {
@@ -34,12 +33,33 @@ class ApiService {
       "data": jsonDecode(response.body),
     };
   }
+
+  static Future<Map<String, dynamic>> updateProfile(
+    int userId,
+    Map<String, dynamic> data,
+  ) async {
+    final res = await http.put(
+      Uri.parse("$baseUrl/users/$userId"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(data),
+    );
+
+    if (res.statusCode == 200 || res.statusCode == 204) {
+      // Backend might return empty body on 204
+      var responseData = {};
+      try {
+        responseData = jsonDecode(res.body);
+      } catch (_) {}
+      return {"status": res.statusCode, "data": responseData};
+    } else {
+      throw Exception("Failed to update profile");
+    }
+  }
+
   /* ================= PETS ================= */
 
   static Future<List<dynamic>> getPets(int userId) async {
-    final res = await http.get(
-      Uri.parse("$baseUrl/pets/$userId"),
-    );
+    final res = await http.get(Uri.parse("$baseUrl/pets/$userId"));
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body);
@@ -62,10 +82,20 @@ class ApiService {
     }
   }
 
-  static Future<void> deletePet(int id) async {
-    final res = await http.delete(
+  static Future<void> updatePet(int id, Map<String, dynamic> petData) async {
+    final response = await http.put(
       Uri.parse("$baseUrl/pets/$id"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(petData),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to update pet");
+    }
+  }
+
+  static Future<void> deletePet(int id) async {
+    final res = await http.delete(Uri.parse("$baseUrl/pets/$id"));
 
     if (res.statusCode != 200) {
       throw Exception("Failed to delete pet");
@@ -75,35 +105,76 @@ class ApiService {
   /* ================= BOOKINGS ================= */
 
   static Future<List<dynamic>> getBookings(int userId) async {
-    final response = await http.get(
-      Uri.parse("$baseUrl/bookings/$userId"),
-    );
+    final response = await http.get(Uri.parse("$baseUrl/bookings/$userId"));
 
     return jsonDecode(response.body);
   }
 
   static Future<Map<String, dynamic>> createBooking(
-      Map<String, dynamic> data) async {
-    final res = await http.post(
-      Uri.parse("$baseUrl/bookings"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(data),
-    ).timeout(Duration(seconds: 15));
+    Map<String, dynamic> data,
+  ) async {
+    final res = await http
+        .post(
+          Uri.parse("$baseUrl/bookings"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(data),
+        )
+        .timeout(Duration(seconds: 15));
 
     print("res.body ${res.body}");
 
-    return {
-      "status": res.statusCode,
-      "data": jsonDecode(res.body),
-    };
+    return {"status": res.statusCode, "data": jsonDecode(res.body)};
+  }
+
+  static Future<Map<String, dynamic>> cancelBooking(int bookingId) async {
+    final res = await http
+        .put(
+          Uri.parse("$baseUrl/bookings/$bookingId"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({"status": "cancelled"}),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    print("Cancel response: ${res.body}");
+
+    if (res.statusCode == 200 || res.statusCode == 204) {
+      return {
+        "status": res.statusCode,
+        "data": {"success": true},
+      };
+    } else {
+      throw Exception("Failed to cancel booking");
+    }
+  }
+
+  static Future<Map<String, dynamic>> updatePaymentStatus(
+    int bookingId,
+    String status,
+  ) async {
+    final res = await http
+        .put(
+          Uri.parse("$baseUrl/bookings/$bookingId"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({"paymentStatus": status}),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    print("Payment update response: ${res.body}");
+
+    if (res.statusCode == 200 || res.statusCode == 204) {
+      return {
+        "status": res.statusCode,
+        "data": {"success": true},
+      };
+    } else {
+      throw Exception("Failed to update payment status");
+    }
   }
 
   /* ================= DASHBOARD ================= */
 
   static Future<dynamic> getAdminDashboard() async {
-    final response = await http.get(
-      Uri.parse("$baseUrl/dashboard/admin"),
-    );
+    final response = await http.get(Uri.parse("$baseUrl/dashboard/admin"));
 
     return jsonDecode(response.body);
   }
@@ -112,11 +183,9 @@ class ApiService {
     final url = Uri.parse("$baseUrl/api/providers?type=$type");
 
     // call API with 3 sec timeout
-    final response = await http.get(url,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ).timeout(const Duration(seconds: 15));
+    final response = await http
+        .get(url, headers: {"Content-Type": "application/json"})
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       print("response.body ${response.body}");
@@ -128,4 +197,157 @@ class ApiService {
     }
   }
 
+  /* ================= VET DASHBOARD ================= */
+
+  static Future<Map<String, dynamic>> getVetDashboard(int vetId) async {
+    final res = await http.get(Uri.parse('$baseUrl/vet/dashboard/$vetId'));
+    return jsonDecode(res.body);
+  }
+
+  static Future<List<dynamic>> getVetBookings(int vetId) async {
+    final res = await http.get(Uri.parse('$baseUrl/vet/bookings/$vetId'));
+    return jsonDecode(res.body);
+  }
+
+  static Future<void> saveVisitSummary(Map data) async {
+    await http.post(
+      Uri.parse('$baseUrl/vet/visit-summary'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(data),
+    );
+  }
+
+  static Future<void> saveAvailability(Map data) async {
+    await http.post(
+      Uri.parse('$baseUrl/vet/availability'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(data),
+    );
+  }
+
+  //      CARETAKER DASHBOARD
+  static Future<Map<String, dynamic>> getCaretakerDashboard(
+    int caretakerId,
+  ) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/dashboard/caretaker/$caretakerId"),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to load caretaker dashboard");
+    }
+  }
+
+  static Future<List<dynamic>> getCaretakerBookings(int caretakerId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/bookings/caretaker/$caretakerId"),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to load caretaker bookings");
+    }
+  }
+
+  static Future<Map<String, dynamic>> postCaretakerReport(
+    int caretakerId,
+    Map<String, dynamic> data,
+  ) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/caretaker/$caretakerId/report"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(data),
+    );
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      return {"status": res.statusCode, "data": jsonDecode(res.body)};
+    } else {
+      throw Exception("Failed to submit report");
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateCaretakerAvailability(
+    int caretakerId,
+    Map<String, dynamic> data,
+  ) async {
+    final res = await http.put(
+      Uri.parse("$baseUrl/caretaker/$caretakerId/availability"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(data),
+    );
+
+    if (res.statusCode == 200) {
+      return {"status": res.statusCode, "data": jsonDecode(res.body)};
+    } else {
+      throw Exception("Failed to update availability");
+    }
+  }
+
+  static Future<List<dynamic>> getCaretakerEarnings(int caretakerId) async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/caretaker/$caretakerId/earnings"),
+    );
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed to load earnings");
+    }
+  }
+
+  static Future<List<dynamic>> getCaretakerEmergencyBookings(
+    int caretakerId,
+  ) async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/bookings/caretaker/$caretakerId/emergency"),
+    );
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed to load emergency bookings");
+    }
+  }
+
+  /* ================= ADMIN ================= */
+  static Future<List<dynamic>> getAllBookings() async {
+    final response = await http.get(Uri.parse("$baseUrl/admin/bookings"));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)["data"];
+    } else {
+      throw Exception("Failed to load admin bookings");
+    }
+  }
+
+  static Future<List<dynamic>> getUsers() async {
+    final res = await http.get(Uri.parse('$baseUrl/admin/users'));
+    return jsonDecode(res.body);
+  }
+
+  static Future<List<dynamic>> getVets() async {
+    final res = await http.get(Uri.parse('$baseUrl/admin/vets'));
+    return jsonDecode(res.body);
+  }
+
+  static Future<List<dynamic>> getCaretakers() async {
+    final res = await http.get(Uri.parse('$baseUrl/admin/caretakers'));
+    return jsonDecode(res.body);
+  }
+
+  static Future<List<dynamic>> getPayments() async {
+    final res = await http.get(Uri.parse('$baseUrl/admin/payments'));
+    return jsonDecode(res.body);
+  }
+
+  static Future<void> verifyUser(int id) async {
+    await http.patch(Uri.parse('$baseUrl/admin/verify/$id'));
+  }
+
+  static Future<void> rejectUser(int id) async {
+    await http.patch(Uri.parse('$baseUrl/admin/reject/$id'));
+  }
 }

@@ -20,8 +20,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-
-    loadBookings(); // ✅ ADD
+    loadBookings();
   }
 
   @override
@@ -125,7 +124,11 @@ class _MyBookingsPageState extends State<MyBookingsPage>
       itemCount: bookings.length,
       itemBuilder: (context, index) {
         final booking = bookings[index];
-        return _BookingCard(booking: booking, type: type);
+        return _BookingCard(
+          booking: booking,
+          type: type,
+          onCancel: () => _cancelBooking(context, booking['id']),
+        );
       },
     );
   }
@@ -169,16 +172,20 @@ class _MyBookingsPageState extends State<MyBookingsPage>
           "trustScore": b["provider"]?["trustScore"] ?? 0,
           "address": "Service Location",
           "notes": b["notes"] ?? "",
-          "reviewGiven": false,
+          "paymentStatus": b["paymentStatus"] ?? "pending",
+          "reviewGiven": b["reviewGiven"] ?? false,
         };
 
-        if (b["status"] == "pending" || b["status"] == "confirmed") {
+        if (b["status"] == "pending" ||
+            b["status"] == "confirmed" ||
+            b["status"] == "emergency") {
           upcoming.add(booking);
         } else if (b["status"] == "completed") {
           completed.add(booking);
         } else if (b["status"] == "cancelled") {
           cancelled.add(booking);
         }
+
       }
 
       setState(() {
@@ -191,13 +198,97 @@ class _MyBookingsPageState extends State<MyBookingsPage>
       setState(() => isLoading = false);
     }
   }
+
+  Future<void> _cancelBooking(
+    BuildContext context,
+    String bookingId,
+  ) async {
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2B2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Cancel Booking', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure? This will decrease the provider\'s trust score.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCancel != true) return;
+
+    try {
+      await ApiService.cancelBooking(int.parse(bookingId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking cancelled! Provider Trust Score -5 📉'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        loadBookings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Cancel failed: $e')));
+      }
+    }
+  }
+
+  Future<void> _togglePayment(
+    BuildContext context,
+    String bookingId,
+    String currentStatus,
+  ) async {
+    final newStatus = currentStatus == 'pending' ? 'paid' : 'pending';
+    try {
+      await ApiService.updatePaymentStatus(
+        int.parse(bookingId),
+        newStatus,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Payment status updated to ${newStatus.toUpperCase()}',
+            ),
+          ),
+        );
+        loadBookings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      }
+    }
+  }
 }
 
 class _BookingCard extends StatelessWidget {
   final Map<String, dynamic> booking;
   final String type;
+  final VoidCallback? onCancel;
 
-  const _BookingCard({required this.booking, required this.type});
+  const _BookingCard({
+    required this.booking,
+    required this.type,
+    this.onCancel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +298,10 @@ class _BookingCard extends StatelessWidget {
     Color statusColor;
     String statusText;
     switch (booking['status']) {
+      case 'emergency':
+        statusColor = Colors.redAccent;
+        statusText = 'Emergency';
+        break;
       case 'confirmed':
         statusColor = Colors.green;
         statusText = 'Confirmed';
@@ -312,37 +407,40 @@ class _BookingCard extends StatelessWidget {
                       style: const TextStyle(color: Colors.white70),
                     ),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getTrustScoreColor(
-                          booking['trustScore'],
-                        ).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.verified_user,
-                            size: 12,
-                            color: _getTrustScoreColor(booking['trustScore']),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${booking['trustScore']}',
-                            style: TextStyle(
+                    if (booking['trustScore'] > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getTrustScoreColor(
+                            booking['trustScore'],
+                          ).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.verified_user,
+                              size: 12,
                               color: _getTrustScoreColor(booking['trustScore']),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              '${booking['trustScore']}',
+                              style: TextStyle(
+                                color: _getTrustScoreColor(
+                                  booking['trustScore'],
+                                ),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -421,17 +519,26 @@ class _BookingCard extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   alignment: WrapAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Amount: ₹${booking['price']}',
-                      style: const TextStyle(
-                        color: Color(0xFFF57C00),
-                        fontWeight: FontWeight.bold,
+                    if (booking['price'] > 0)
+                      Text(
+                        'Amount: ₹${booking['price']}',
+                        style: const TextStyle(
+                          color: Color(0xFFF57C00),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    else
+                      const Text(
+                        'Amount: TBD',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     if (isUpcoming) ...[
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: onCancel,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.withOpacity(0.2),
                           foregroundColor: Colors.red,

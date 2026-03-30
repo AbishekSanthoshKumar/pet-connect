@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/auth/providers/login_provider.dart';
 import 'package:frontend/features/auth/screens/login_screen.dart';
-import 'package:frontend/features/auth/screens/register_screen.dart';
 import 'package:frontend/features/dashboard/caretaker_dashboard.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
 import 'package:frontend/features/dashboard/vet_dashboard.dart';
@@ -105,11 +104,7 @@ class _AuthCheckerState extends State<AuthChecker> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.pets,
-                size: 64,
-                color: Color(0xFFF57C00),
-              ),
+              Icon(Icons.pets, size: 64, color: Color(0xFFF57C00)),
               SizedBox(height: 24),
               Text(
                 'PetConnect',

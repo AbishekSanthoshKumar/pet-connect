@@ -16,15 +16,22 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  String selectedRole = "Owner"; // ✅ fixed
+  String selectedRole = "Owner";
   bool isLoading = false;
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _usernameController = TextEditingController(); // optional (UI only)
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _adminCodeController = TextEditingController();
+
+  // Role-specific controllers
+  final _clinicController = TextEditingController();
+  final _licenseController = TextEditingController();
+  final _experienceController = TextEditingController();
+  final _specialistController = TextEditingController();
 
   @override
   void dispose() {
@@ -34,13 +41,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _adminCodeController.dispose();
+    _clinicController.dispose();
+    _licenseController.dispose();
+    _experienceController.dispose();
+    _specialistController.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
+        const SnackBar(
+          content: Text("Passwords do not match"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (selectedRole == "Admin" && _adminCodeController.text.trim() != "4951") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Invalid Admin Access Code"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -48,64 +73,71 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => isLoading = true);
 
     try {
-    final res = await ApiService.register({
-    "name": _nameController.text.trim(),
-    "email": _emailController.text.trim(),
-    "phone": _phoneController.text.trim(),
-    "password": _passwordController.text.trim(),
-    "role": selectedRole.toLowerCase(),
-    });
+      final res = await ApiService.register({
+        "name": _nameController.text.trim(),
+        "email": _emailController.text.trim(),
+        "phone": _phoneController.text.trim(),
+        "password": _passwordController.text.trim(),
+        "role": selectedRole.toLowerCase(),
+        "clinic": selectedRole == "Vet" ? _clinicController.text.trim() : null,
+        "license": selectedRole == "Vet"
+            ? _licenseController.text.trim()
+            : null,
+        "specialist": (selectedRole == "Vet" || selectedRole == "Caretaker")
+            ? _specialistController.text.trim()
+            : null,
+        "experience": selectedRole == "Caretaker"
+            ? _experienceController.text.trim()
+            : null,
+      });
 
-    final statusCode = res["statusCode"];
-    final data = res["data"];
+      final statusCode = res["statusCode"];
+      final data = res["data"];
 
-    if (statusCode == 200 || statusCode == 201) {
-    final prefs = await SharedPreferences.getInstance();
+      if (statusCode == 200 || statusCode == 201) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool("isLoggedIn", true);
+        await prefs.setString("role", data["role"]);
+        await prefs.setInt("user_id", data["id"]);
 
-    await prefs.setBool("isLoggedIn", true);
-    await prefs.setString("role", data["role"]);
-    await prefs.setInt("user_id", data["id"]);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Registration Successful")),
+        );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Registration Successful")),
-    );
+        Widget dashboard;
+        switch (data["role"]) {
+          case "owner":
+            dashboard = const OwnerDashboard();
+            break;
+          case "vet":
+            dashboard = const VetDashboard();
+            break;
+          case "caretaker":
+            dashboard = const CaretakerDashboard();
+            break;
+          case "admin":
+            dashboard = const AdminDashboard();
+            break;
+          default:
+            dashboard = const LoginScreen();
+        }
 
-    Widget dashboard;
-
-    switch (data["role"]) {
-    case "owner":
-    dashboard = const OwnerDashboard();
-    break;
-    case "vet":
-    dashboard = const VetDashboard();
-    break;
-    case "caretaker":
-    dashboard = const CaretakerDashboard();
-    break;
-    case "admin":
-    dashboard = const AdminDashboard();
-    break;
-    default:
-    dashboard = const LoginScreen();
-    }
-
-    Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (_) => dashboard),
-    );
-    } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(data["error"] ?? "Registration failed")),
-    );
-    }
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => dashboard),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data["error"] ?? "Registration failed")),
+        );
+      }
     } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text("Error: $e")),
-    );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
     }
-
   }
 
   @override
@@ -113,185 +145,230 @@ class _RegisterScreenState extends State<RegisterScreen> {
     const Color primaryColor = Color(0xFFF57C00);
 
     return Scaffold(
-    body: Stack(
-    fit: StackFit.expand,
-    children: [
-    Image.asset(
-    'assets/images/nature-bg.jpg',
-    fit: BoxFit.cover,
-    alignment: const Alignment(-0.5, 0),
-    ),
-    Container(color: Colors.black45),
-    LayoutBuilder(
-    builder: (context, constraints) {
-    final isWide = constraints.maxWidth > 800;
-    final form = Center(
-    child: ConstrainedBox(
-    constraints: const BoxConstraints(maxWidth: 450),
-    child: SingleChildScrollView(
-    padding: const EdgeInsets.all(24.0),
-    child: ClipRRect(
-    borderRadius: BorderRadius.circular(20.0),
-    child: BackdropFilter(
-    filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-    child: Container(
-    padding: const EdgeInsets.all(28),
-    decoration: BoxDecoration(
-    color: Colors.white.withOpacity(0.1),
-    borderRadius: BorderRadius.circular(20),
-    border: Border.all(
-    color: Colors.white.withOpacity(0.2),
-    width: 0.5,
-    ),
-    ),
-    child: Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-    const Icon(Icons.pets, size: 48, color: Colors.white38),
-    const SizedBox(height: 12),
-    const Text(
-    "Create Account",
-    style: TextStyle(
-    fontSize: 26,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    ),
-    ),
-    const SizedBox(height: 6),
-    const Text(
-    "Join PetConnect today",
-    style: TextStyle(fontSize: 16, color: Colors.white70),
-    ),
-    const SizedBox(height: 28),
-
-    _buildTextField(
-    controller: _nameController,
-    label: "Full Name",
-    icon: Icons.person_outline,
-    ),
-    const SizedBox(height: 16),
-
-    _buildTextField(
-    controller: _emailController,
-    label: "Email Address",
-    icon: Icons.email_outlined,
-    keyboardType: TextInputType.emailAddress,
-    ),
-    const SizedBox(height: 16),
-
-    _buildTextField(
-    controller: _phoneController,
-    label: "Phone Number",
-    icon: Icons.phone,
-    keyboardType: TextInputType.phone,
-    ),
-    const SizedBox(height: 16),
-
-    _buildTextField(
-    controller: _usernameController,
-    label: "Username",
-    icon: Icons.person_outline,
-    ),
-    const SizedBox(height: 16),
-
-    _buildTextField(
-    controller: _passwordController,
-    label: "Password",
-    icon: Icons.lock_outline,
-    obscureText: true,
-    ),
-    const SizedBox(height: 16),
-
-    _buildTextField(
-    controller: _confirmPasswordController,
-    label: "Confirm Password",
-    icon: Icons.lock_outline,
-    obscureText: true,
-    ),
-    const SizedBox(height: 20),
-
-    const Align(
-    alignment: Alignment.centerLeft,
-    child: Text(
-    "I am a...",
-    style: TextStyle(
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    ),
-    ),
-    ),
-    const SizedBox(height: 12),
-    _buildRoleSelector(),
-    const SizedBox(height: 28),
-
-    SizedBox(
-    width: double.infinity,
-    height: 50,
-    child: ElevatedButton(
-    onPressed: isLoading ? null : _register,
-    style: ElevatedButton.styleFrom(
-    backgroundColor: primaryColor,
-    shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(12),
-    ),
-    ),
-    child: isLoading
-    ? const CircularProgressIndicator(color: Colors.white)
-        : const Text(
-    "Create Account",
-    style: TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    ),
-    ),
-    ),
-    ),
-    const SizedBox(height: 20),
-
-    Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-    const Text(
-    "Already have an account? ",
-    style: TextStyle(color: Colors.white70),
-    ),
-    GestureDetector(
-    onTap: () {
-    Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-    builder: (_) => const LoginScreen(),
-    ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/nature-bg.jpg',
+            fit: BoxFit.cover,
+            alignment: const Alignment(-0.5, 0),
+          ),
+          Container(color: Colors.black45),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 800;
+              final form = Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 450),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20.0),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(28),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.pets,
+                                size: 48,
+                                color: Colors.white38,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                "Create Account",
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                "Join PetConnect today",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              _buildTextField(
+                                controller: _nameController,
+                                label: "Full Name",
+                                icon: Icons.person_outline,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                controller: _emailController,
+                                label: "Email Address",
+                                icon: Icons.email_outlined,
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                controller: _phoneController,
+                                label: "Phone Number",
+                                icon: Icons.phone,
+                                keyboardType: TextInputType.phone,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                controller: _passwordController,
+                                label: "Password",
+                                icon: Icons.lock_outline,
+                                obscureText: true,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                controller: _confirmPasswordController,
+                                label: "Confirm Password",
+                                icon: Icons.lock_outline,
+                                obscureText: true,
+                              ),
+                              const SizedBox(height: 20),
+                              const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  "I am a...",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildRoleSelector(),
+                              const SizedBox(height: 16),
+                              if (selectedRole == "Admin") ...[
+                                _buildTextField(
+                                  controller: _adminCodeController,
+                                  label: "Admin Access Code *",
+                                  icon: Icons.vpn_key,
+                                  obscureText: true,
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              if (selectedRole == "Vet") ...[
+                                _buildTextField(
+                                  controller: _clinicController,
+                                  label: "Clinic Name",
+                                  icon: Icons.local_hospital_outlined,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _specialistController,
+                                  label:
+                                      "Specialist Area (e.g. Surgery, Training)",
+                                  icon: Icons.star_outline,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _licenseController,
+                                  label: "Medical License Number",
+                                  icon: Icons.verified_user_outlined,
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              if (selectedRole == "Caretaker") ...[
+                                _buildTextField(
+                                  controller: _specialistController,
+                                  label:
+                                      "Specialised Area (e.g. Grooming, Senior Care)",
+                                  icon: Icons.star_outline,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _experienceController,
+                                  label: "Experience (Years)",
+                                  icon: Icons.access_time,
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: isLoading ? null : _register,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryColor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: isLoading
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white,
+                                        )
+                                      : const Text(
+                                          "Create Account",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "Already have an account? ",
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const LoginScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      "Sign In",
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+              return isWide
+                  ? Row(
+                      children: [
+                        const Expanded(child: SizedBox()),
+                        Expanded(child: form),
+                      ],
+                    )
+                  : form;
+            },
+          ),
+        ],
+      ),
     );
-    },
-    child: Text(
-    "Sign In",
-    style: TextStyle(
-    color: primaryColor,
-    fontWeight: FontWeight.bold,
-    ),
-    ),
-    ),
-    ],
-    ),
-    ],
-    ),
-    ),
-    ),
-    ),
-    ),
-    ),
-    );
-    return isWide
-    ? Row(children: [const Expanded(child: SizedBox()), Expanded(child: form)])
-        : form;
-    },
-    ),
-    ],
-    ),
-    );
-
   }
 
   Widget _buildTextField({
@@ -320,7 +397,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           borderRadius: BorderRadius.circular(10),
         ),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: Colors.white.withValues(alpha: 0.05),
       ),
     );
   }
@@ -328,7 +405,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildRoleSelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white54),
       ),
@@ -352,7 +429,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFF57C00).withOpacity(0.3)
+                ? const Color(0xFFF57C00).withValues(alpha: 0.3)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),

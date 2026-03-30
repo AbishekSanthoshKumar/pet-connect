@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:frontend/features/dashboard/owner_dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/services/api_service.dart';
@@ -49,6 +50,19 @@ class _PetManagementPageState extends State<PetManagementPage> {
       fetchPets();
     } catch (e) {
       print("Error adding pet: $e");
+    }
+  }
+
+  Future<void> updatePetInBackend(int id, Map<String, dynamic> pet) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('user_id');
+
+      await ApiService.updatePet(id, {...pet, "ownerId": userId});
+
+      fetchPets();
+    } catch (e) {
+      print("Error updating pet: $e");
     }
   }
 
@@ -114,7 +128,8 @@ class _PetManagementPageState extends State<PetManagementPage> {
                       }
                       return _PetCard(
                         pet: _pets[index],
-                        onEdit: () {}, // keep UI, backend later
+                        onEdit: () =>
+                            _showAddPetDialog(petToEdit: _pets[index]),
                         onDelete: () =>
                             deletePetFromBackend(_pets[index]['id']),
                       );
@@ -183,20 +198,29 @@ class _PetManagementPageState extends State<PetManagementPage> {
     );
   }
 
-  void _showAddPetDialog() {
+  void _showAddPetDialog({Map<String, dynamic>? petToEdit}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _PetFormSheet(
+        initialPet: petToEdit,
         onSave: (pet) {
-          addPetToBackend({
+          final parsedPet = {
             "name": pet['name'],
             "breed": pet['breed'],
             "type": pet['type'],
-            "age": int.parse(pet['age']),
-            "weight": double.parse(pet['weight']),
-          });
+            "age": int.tryParse(pet['age'].toString()) ?? 0,
+            "weight": double.tryParse(pet['weight'].toString()) ?? 0.0,
+            if (pet['medicalDetails'] != null)
+              "medicalDetails": pet['medicalDetails'],
+          };
+
+          if (petToEdit == null) {
+            addPetToBackend(parsedPet);
+          } else {
+            updatePetInBackend(petToEdit['id'], parsedPet);
+          }
         },
       ),
     );
@@ -218,18 +242,69 @@ class _PetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(
-        pet['name'] ?? '',
-        style: const TextStyle(color: Colors.white),
+    String imagePath = (pet['type'] ?? 'dog').toString().toLowerCase() == 'cat'
+        ? 'assets/images/pet-cat.jpg'
+        : 'assets/images/pet-dog.jpg';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        image: DecorationImage(
+          image: AssetImage(imagePath),
+          fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(
+            Colors.black.withOpacity(0.6),
+            BlendMode.darken,
+          ),
+        ),
       ),
-      subtitle: Text(
-        pet['breed'] ?? '',
-        style: const TextStyle(color: Colors.white70),
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete, color: Colors.red),
-        onPressed: onDelete,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        title: Text(
+          pet['name'] ?? '',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              pet['breed'] ?? '',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            if (pet['medicalDetails'] != null &&
+                pet['medicalDetails'].toString().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  "Docs: ${pet['medicalDetails'].toString().split('/').last}",
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.blue),
+              onPressed: onEdit,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: onDelete,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -239,8 +314,9 @@ class _PetCard extends StatelessWidget {
 
 class _PetFormSheet extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
+  final Map<String, dynamic>? initialPet;
 
-  const _PetFormSheet({required this.onSave});
+  const _PetFormSheet({required this.onSave, this.initialPet});
 
   @override
   State<_PetFormSheet> createState() => _PetFormSheetState();
@@ -252,68 +328,136 @@ class _PetFormSheetState extends State<_PetFormSheet> {
   final ageController = TextEditingController();
   final weightController = TextEditingController();
 
-  String selectedType = "dog";
+  String selectedType = "Dog";
+  String? medicalDetailsFile;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPet != null) {
+      nameController.text = widget.initialPet!['name'] ?? '';
+      breedController.text = widget.initialPet!['breed'] ?? '';
+      ageController.text = widget.initialPet!['age']?.toString() ?? '';
+      weightController.text = widget.initialPet!['weight']?.toString() ?? '';
+      selectedType = widget.initialPet!['type'] ?? 'Dog';
+      medicalDetailsFile = widget.initialPet!['medicalDetails'];
+      // Ensure the selectedType is one of the valid options
+      if (!["Dog", "Cat"].contains(selectedType)) {
+        selectedType = "Dog";
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFF2B2A2A),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: "Pet Name"),
-          ),
-          TextField(
-            controller: breedController,
-            decoration: const InputDecoration(labelText: "Breed"),
-          ),
-          TextField(
-            controller: ageController,
-            decoration: const InputDecoration(labelText: "Age"),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            maxLength: 2,
-          ),
-          TextField(
-            controller: weightController,
-            decoration: const InputDecoration(labelText: "Weight (kg)"),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            maxLength: 3,
-          ),
-          DropdownButtonFormField<String>(
-            value: selectedType,
-            items: ["dog", "cat"].map((type) {
-              return DropdownMenuItem(
-                value: type,
-                child: Text(type),
-              );
-            }).toList(),
-            onChanged: (val) {
-              setState(() => selectedType = val!);
-            },
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              widget.onSave({
-                "name": nameController.text,
-                "breed": breedController.text,
-                "age": ageController.text,
-                "type": selectedType,
-                "weight": weightController.text,
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.initialPet == null ? "Add New Pet" : "Edit Pet",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "Pet Name"),
+              style: const TextStyle(color: Colors.white),
+            ),
+            TextField(
+              controller: breedController,
+              decoration: const InputDecoration(labelText: "Breed"),
+              style: const TextStyle(color: Colors.white),
+            ),
+            TextField(
+              controller: ageController,
+              decoration: const InputDecoration(labelText: "Age"),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 2,
+              style: const TextStyle(color: Colors.white),
+            ),
+            TextField(
+              controller: weightController,
+              decoration: const InputDecoration(labelText: "Weight (kg)"),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 3,
+              style: const TextStyle(color: Colors.white),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: selectedType,
+              dropdownColor: const Color(0xFF2B2A2A),
+              style: const TextStyle(color: Colors.white),
+              items: ["Dog", "Cat"].map((type) {
+                return DropdownMenuItem(value: type, child: Text(type));
+              }).toList(),
+              onChanged: (val) {
+                setState(() => selectedType = val!);
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    medicalDetailsFile != null
+                        ? "Doc: ${medicalDetailsFile!.split('/').last}"
+                        : "No medical document selected",
+                    style: const TextStyle(color: Colors.white70),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    FilePickerResult? result = await FilePicker.platform
+                        .pickFiles();
+                    if (result != null) {
+                      setState(() {
+                        medicalDetailsFile = result.files.single.path;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.upload_file, color: Colors.orange),
+                  label: const Text(
+                    "Upload",
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                widget.onSave({
+                  "name": nameController.text,
+                  "breed": breedController.text,
+                  "age": ageController.text,
+                  "type": selectedType,
+                  "weight": weightController.text,
+                  "medicalDetails": medicalDetailsFile,
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        ),
       ),
     );
   }

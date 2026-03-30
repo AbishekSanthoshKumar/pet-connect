@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:frontend/core/logout_helper.dart';
 
 // --- Custom Dark Color Palette ---
 const Color _primaryTextColor = Colors.white;
@@ -71,10 +70,7 @@ class GlassyAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               const SizedBox(width: 12),
               // Logout
-              AppBarIcon(
-                icon: Icons.logout,
-                onPressed: logout,
-              ),
+              AppBarIcon(icon: Icons.logout, onPressed: logout),
             ],
           ),
         ),
@@ -91,7 +87,7 @@ class AppBarIcon extends StatelessWidget {
   final VoidCallback onPressed;
 
   const AppBarIcon({required this.icon, required this.onPressed, Key? key})
-      : super(key: key);
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -161,4 +157,3 @@ class NeumorphicGlassContainer extends StatelessWidget {
     );
   }
 }
-

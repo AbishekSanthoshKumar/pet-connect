@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:frontend/features/booking/screens/booking_page.dart';
@@ -6,7 +5,7 @@ import 'package:frontend/features/booking/screens/my_bookings_page.dart';
 import 'package:frontend/features/pets/screens/pet_management_page.dart';
 import 'package:frontend/services/api_service.dart';
 import 'package:frontend/shared/widgets/glassy_components.dart';
-import 'package:frontend/shared/widgets/action_card.dart'; // ✅ USE YOUR REAL CARD
+import 'package:frontend/shared/widgets/action_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const Color _primaryTextColor = Colors.white;
@@ -25,6 +24,10 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   List<dynamic> pets = [];
   bool isLoading = true;
 
+  int _caretakerBookings = 0;
+  int _vetBookings = 0;
+  int _emergencyBookings = 0;
+
   @override
   void initState() {
     super.initState();
@@ -39,9 +42,31 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
     try {
       final data = await ApiService.getPets(userId);
+      final bookingData = await ApiService.getBookings(userId);
+
+      int ctCount = 0;
+      int vCount = 0;
+      int emCount = 0;
+
+      for (var b in bookingData) {
+        if (b["status"] == "emergency" || b["isEmergency"] == true) {
+          emCount++;
+        }
+        final String pType = (b["provider"]?["type"] ?? "")
+            .toString()
+            .toLowerCase();
+        if (pType == "caretaker") {
+          ctCount++;
+        } else if (pType == "vet" || pType == "veterinarian") {
+          vCount++;
+        }
+      }
 
       setState(() {
         pets = data;
+        _caretakerBookings = ctCount;
+        _vetBookings = vCount;
+        _emergencyBookings = emCount;
         isLoading = false;
       });
     } catch (e) {
@@ -91,15 +116,21 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "Welcome back, $userName 👋",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      color: _primaryTextColor,
-                                      fontWeight: FontWeight.bold,
+                              GestureDetector(
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      "Welcome $userName 👋",
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.copyWith(
+                                            color: _primaryTextColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                     ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 10),
                               const Text(
@@ -144,7 +175,10 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
-                              fixedSize: Size(MediaQuery.of(context).size.width * 0.8, 30,),
+                              fixedSize: Size(
+                                MediaQuery.of(context).size.width * 0.8,
+                                30,
+                              ),
                             ),
                             onPressed: () => _logout(context),
                             child: Text("Logout"),
@@ -199,7 +233,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           icon: Icons.schedule,
           iconColor: Colors.blue,
           title: "Bookings",
-          subtitle: "View bookings",
+          subtitle:
+              "$_caretakerBookings Care • $_vetBookings Vet • $_emergencyBookings ER",
           onTap: () {
             Navigator.push(
               context,
@@ -241,33 +276,51 @@ class _MyPetsSection extends StatelessWidget {
         itemBuilder: (context, index) {
           final pet = pets[index];
 
+          String imagePath =
+              (pet['type'] ?? 'dog').toString().toLowerCase() == 'cat'
+              ? 'assets/images/pet-cat.jpg'
+              : 'assets/images/pet-dog.jpg';
+
           return NeumorphicGlassContainer(
             width: 250,
             margin: const EdgeInsets.symmetric(horizontal: 10),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    pet['name'] ?? '',
-                    style: const TextStyle(
-                      color: _primaryTextColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                image: DecorationImage(
+                  image: AssetImage(imagePath),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withOpacity(0.5),
+                    BlendMode.darken,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pet['name'] ?? '',
+                      style: const TextStyle(
+                        color: _primaryTextColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    pet['breed'] ?? '',
-                    style: const TextStyle(color: _secondaryTextColor),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    pet['type'] ?? '',
-                    style: const TextStyle(color: _secondaryTextColor),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(
+                      pet['breed'] ?? '',
+                      style: const TextStyle(color: _secondaryTextColor),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      pet['type'] ?? '',
+                      style: const TextStyle(color: _secondaryTextColor),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -276,3 +329,7 @@ class _MyPetsSection extends StatelessWidget {
     );
   }
 }
+
+//devananda
+//franky
+//caleb

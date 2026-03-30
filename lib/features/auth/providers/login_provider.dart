@@ -34,7 +34,7 @@ class LoginProvider with ChangeNotifier {
         notifyListeners();
         return role; // Return role on success
       }
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       _errorMessage = e.response?.data['message'] ?? e.message;
     } catch (e) {
       _errorMessage = 'An unexpected error occurred.';

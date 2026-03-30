@@ -24,16 +24,18 @@ class _BookingPageState extends State<BookingPage>
   void initState() {
     super.initState();
     _startInEmergency = widget.isEmergencyMode;
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: _startInEmergency ? 2 : 0,
+    );
 
-    loadProviders(); // ✅ ADD THIS
+    loadProviders();
 
     _tabController.addListener(() {
-      if (_tabController.index == 2) {
-        setState(() {
-          _startInEmergency = true;
-        });
-      }
+      setState(() {
+        _startInEmergency = _tabController.index == 2;
+      });
     });
   }
 
@@ -97,17 +99,17 @@ class _BookingPageState extends State<BookingPage>
             child: Column(
               children: [
                 const SizedBox(height: 60),
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildProviderList('vet'),
-                      _buildProviderList('caretaker'),
-                      _buildEmergencyList(),
-                    ],
-                  ),
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildProviderList('vet'),
+                            _buildProviderList('caretaker'),
+                            _buildEmergencyList(),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -138,8 +140,9 @@ class _BookingPageState extends State<BookingPage>
   }
 
   Widget _buildEmergencyList() {
-    final List<Map<String, dynamic>> emergencyCaretakers =
-        _caretakers.where((c) => c['emergencyAvailable'] == true).toList();
+    final List<Map<String, dynamic>> emergencyCaretakers = _caretakers
+        .where((c) => c['emergencyAvailable'] == true)
+        .toList();
 
     if (emergencyCaretakers.isEmpty) {
       return Center(
@@ -191,17 +194,17 @@ class _BookingPageState extends State<BookingPage>
   }
 
   void _showBookingDialog(
-      Map<String, dynamic> provider,
-      String serviceType,
-      bool isEmergency) {
-
+    Map<String, dynamic> provider,
+    String serviceType,
+    bool isEmergency,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => _BookingFormSheet(
         provider: provider,
-        providerId: provider["id"], // ✅ ADD THIS
+        providerId: provider["id"],
         serviceType: serviceType,
         isEmergency: isEmergency,
       ),
@@ -224,6 +227,7 @@ class _BookingPageState extends State<BookingPage>
         isLoading = false;
       });
     } catch (e) {
+      print("Error loading providers: $e");
       setState(() => isLoading = false);
     }
   }
@@ -285,10 +289,12 @@ class _ProviderCard extends StatelessWidget {
                       height: 70,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
-                        image: provider['image'] == null ? null : DecorationImage(
-                          image: AssetImage(provider['image']),
-                          fit: BoxFit.cover,
-                        ),
+                        image: provider['image'] == null
+                            ? null
+                            : DecorationImage(
+                                image: AssetImage(provider['image']),
+                                fit: BoxFit.cover,
+                              ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -299,13 +305,38 @@ class _ProviderCard extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  provider['name'],
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      provider['name'] ?? 'New Provider',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    if ((provider['completedAssignments'] ?? 0) == 0)
+                                      Container(
+                                        margin: const EdgeInsets.only(top: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blueAccent,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'NEW JOINED',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                               if (isEmergency)
@@ -342,56 +373,63 @@ class _ProviderCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            provider['specialization'],
+                            provider['specialization'] ?? (serviceType == 'vet' ? 'Veterinarian' : 'Pet Caretaker'),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: onShowTrustScore,
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getTrustScoreColor(provider['trustScore'])
-                                        .withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.verified_user,
-                                        color: _getTrustScoreColor(provider['trustScore']),
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        ' Trust: ${provider['trustScore']}/100',
-                                        style: TextStyle(
-                                          color: _getTrustScoreColor(provider['trustScore']),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
+                          if (serviceType != 'vet' &&
+                              provider['trustScore'] != null)
+                            GestureDetector(
+                              onTap: onShowTrustScore,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getTrustScoreColor(
+                                        provider['trustScore'] ?? 0,
+                                      ).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.verified_user,
+                                          color: _getTrustScoreColor(
+                                            provider['trustScore'] ?? 0,
+                                          ),
+                                          size: 14,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          ' Trust: ${provider['trustScore'] ?? 0}/100',
+                                          style: TextStyle(
+                                            color: _getTrustScoreColor(
+                                              provider['trustScore'] ?? 0,
+                                            ),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.white54,
-                                  size: 14,
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.info_outline,
+                                    color: Colors.white54,
+                                    size: 14,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -399,23 +437,38 @@ class _ProviderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    _InfoChip(icon: Icons.work_history, label: provider['experience']),
-                    const SizedBox(width: 12),
-                    _InfoChip(icon: Icons.schedule, label: provider['availability']),
-                    if (provider['emergencyAvailable'] == true) ...[
-                      const SizedBox(width: 12),
-                      _InfoChip(icon: Icons.add_alert, label: '24/7', color: Colors.red),
-                    ],
-                    const Spacer(),
-                    Text(
-                      '₹${provider['price']}/visit',
-                      style: const TextStyle(
-                        color: Color(0xFFF57C00),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                    if (provider['experience'] != null)
+                      _InfoChip(
+                        icon: Icons.work_history,
+                        label: provider['experience'],
                       ),
-                    ),
+                    if (provider['availability'] != null)
+                      _InfoChip(
+                        icon: Icons.schedule,
+                        label: provider['availability'],
+                      ),
+                    if (provider['emergencyAvailable'] == true)
+                      const _InfoChip(
+                        icon: Icons.add_alert,
+                        label: '24/7',
+                        color: Colors.red,
+                      ),
+                    Builder(builder: (context) {
+                      final int completed = provider['completedAssignments'] ?? 0;
+                      final int dynamicPrice = (300 + (completed * 50)).clamp(300, 800);
+                      return Text(
+                        '₹$dynamicPrice/visit',
+                        style: const TextStyle(
+                          color: Color(0xFFF57C00),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      );
+                    }),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -425,14 +478,19 @@ class _ProviderCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onBook,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isEmergency ? Colors.red : const Color(0xFFF57C00),
+                      backgroundColor: isEmergency
+                          ? Colors.red
+                          : const Color(0xFFF57C00),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: Text(
                       isEmergency ? 'Book Emergency Now' : 'Book Now',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -472,7 +530,10 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color ?? Colors.white70),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color ?? Colors.white70, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(color: color ?? Colors.white70, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -486,19 +547,24 @@ class _TrustScoreSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int trustScore = provider['trustScore'];
+    final int trustScore = provider['trustScore'] ?? 75;
     final int totalAssignments = provider['totalAssignments'] ?? 0;
     final int completedAssignments = provider['completedAssignments'] ?? 0;
     final int onTimeCount = provider['onTimeCount'] ?? 0;
     final int frequentClientCount = provider['frequentClientCount'] ?? 0;
+    final int cancelledAssignments = provider['cancelledAssignments'] ?? 0;
 
     final double assignmentCompletion = totalAssignments > 0
-        ? (completedAssignments / totalAssignments) * 25 : 0;
+        ? (completedAssignments / totalAssignments) * 25
+        : 0;
     final double onTimeScore = completedAssignments > 0
-        ? (onTimeCount / completedAssignments) * 25 : 0;
+        ? (onTimeCount / completedAssignments) * 25
+        : 0;
     final double frequentVisits = frequentClientCount >= 30
-        ? 20.0 : (frequentClientCount / 30) * 20;
-    final double reliability = trustScore - assignmentCompletion - onTimeScore - frequentVisits;
+        ? 20.0
+        : (frequentClientCount / 30) * 20;
+    final double reliability =
+        trustScore - assignmentCompletion - onTimeScore - frequentVisits;
     final double communication = reliability > 0 ? reliability * 0.5 : 0;
     final double professionalism = reliability > 0 ? reliability * 0.5 : 0;
 
@@ -617,15 +683,56 @@ class _TrustScoreSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _ScoreRow(icon: Icons.check_circle, label: 'Assignment Completion', value: assignmentCompletion, maxValue: 25, totalAssignments: totalAssignments, completedAssignments: completedAssignments),
+            _ScoreRow(
+              icon: Icons.check_circle,
+              label: 'Assignment Completion',
+              value: assignmentCompletion,
+              maxValue: 25,
+              totalAssignments: totalAssignments,
+              completedAssignments: completedAssignments,
+            ),
             const SizedBox(height: 12),
-            _ScoreRow(icon: Icons.access_time, label: 'On Time Service', value: onTimeScore, maxValue: 25, totalAssignments: completedAssignments, completedAssignments: onTimeCount),
+            _ScoreRow(
+              icon: Icons.access_time,
+              label: 'On Time Service',
+              value: onTimeScore,
+              maxValue: 25,
+              totalAssignments: completedAssignments,
+              completedAssignments: onTimeCount,
+            ),
             const SizedBox(height: 12),
-            _ScoreRow(icon: Icons.replay, label: 'Frequent Clients', value: frequentVisits, maxValue: 20, totalAssignments: 30, completedAssignments: frequentClientCount),
+            _ScoreRow(
+              icon: Icons.replay,
+              label: 'Frequent Clients',
+              value: frequentVisits,
+              maxValue: 20,
+              totalAssignments: 30,
+              completedAssignments: frequentClientCount,
+            ),
             const SizedBox(height: 12),
-            _ScoreRow(icon: Icons.chat_bubble, label: 'Communication', value: communication, maxValue: 15),
+            _ScoreRow(
+              icon: Icons.chat_bubble,
+              label: 'Communication',
+              value: communication,
+              maxValue: 15,
+            ),
             const SizedBox(height: 12),
-            _ScoreRow(icon: Icons.star, label: 'Professionalism', value: professionalism, maxValue: 15),
+            _ScoreRow(
+              icon: Icons.star,
+              label: 'Professionalism',
+              value: professionalism,
+              maxValue: 15,
+            ),
+            if (cancelledAssignments > 0) ...[
+              const SizedBox(height: 12),
+              _ScoreRow(
+                icon: Icons.cancel_outlined,
+                label: 'Cancellations (Minus)',
+                value: 0,
+                maxValue: cancelledAssignments.toDouble(),
+                isNegative: true,
+              ),
+            ],
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(16),
@@ -636,15 +743,30 @@ class _TrustScoreSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Text(
+                    'Statistics',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _StatItem(label: 'Total Jobs', value: '$totalAssignments'),
-                      _StatItem(label: 'Completed', value: '$completedAssignments'),
+                      _StatItem(
+                        label: 'Total Jobs',
+                        value: '$totalAssignments',
+                      ),
+                      _StatItem(
+                        label: 'Completed',
+                        value: '$completedAssignments',
+                      ),
                       _StatItem(label: 'On Time', value: '$onTimeCount'),
-                      _StatItem(label: 'Frequent', value: '$frequentClientCount'),
+                      _StatItem(
+                        label: 'Frequent',
+                        value: '$frequentClientCount',
+                      ),
                     ],
                   ),
                 ],
@@ -673,8 +795,17 @@ class _ScoreRow extends StatelessWidget {
   final int? totalAssignments;
   final int? completedAssignments;
 
-  const _ScoreRow({required this.icon, required this.label, required this.value, required this.maxValue, this.totalAssignments, this.completedAssignments});
+  final bool isNegative;
 
+  const _ScoreRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.maxValue,
+    this.totalAssignments,
+    this.completedAssignments,
+    this.isNegative = false,
+  });
   @override
   Widget build(BuildContext context) {
     final double percentage = maxValue > 0 ? (value / maxValue) : 0;
@@ -685,24 +816,43 @@ class _ScoreRow extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: Colors.white70),
             const SizedBox(width: 8),
-            Expanded(child: Text(label, style: const TextStyle(color: Colors.white70))),
-            Text('${value.toStringAsFixed(1)}/$maxValue', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(label, style: const TextStyle(color: Colors.white70)),
+            ),
+            Text(
+              '${value.toStringAsFixed(1)}/$maxValue',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
-            value: percentage,
+            value: isNegative ? 1.0 : percentage,
             backgroundColor: Colors.white.withOpacity(0.1),
-            valueColor: AlwaysStoppedAnimation(percentage >= 0.8 ? Colors.green : percentage >= 0.6 ? Colors.blue : Colors.orange),
+            valueColor: AlwaysStoppedAnimation(
+              isNegative
+                  ? Colors.red
+                  : percentage >= 0.8
+                      ? Colors.green
+                      : percentage >= 0.6
+                          ? Colors.blue
+                          : Colors.orange,
+            ),
             minHeight: 6,
           ),
         ),
         if (totalAssignments != null && completedAssignments != null)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('$completedAssignments / $totalAssignments', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            child: Text(
+              '$completedAssignments / $totalAssignments',
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
           ),
       ],
     );
@@ -712,15 +862,23 @@ class _ScoreRow extends StatelessWidget {
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
-
   const _StatItem({required this.label, required this.value});
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF57C00))),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.white54)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFF57C00),
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.white54),
+        ),
       ],
     );
   }
@@ -782,11 +940,25 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
     });
   }
 
-  final List<String> _times = ['9:00 AM', '10:00 AM', '11:00 AM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
-  final List<String> _emergencyTimes = ['Immediate', 'Within 1 hour', 'Within 2 hours', 'Within 4 hours'];
+  final List<String> _times = [
+    '9:00 AM',
+    '10:00 AM',
+    '11:00 AM',
+    '2:00 PM',
+    '3:00 PM',
+    '4:00 PM',
+    '5:00 PM',
+  ];
+  final List<String> _emergencyTimes = [
+    'Immediate',
+    'Within 1 hour',
+    'Within 4 hours',
+    'Within 8 hours',
+    'Within 24 hours',
+  ];
   List<String> _pets = [];
   final List<String> _careLevels = ['Low', 'Medium', 'High'];
-  final List<String> _paymentOptions = [ 'Cash', 'UPI', 'Card Payment' ];
+  final List<String> _paymentOptions = ['Cash', 'UPI', 'Card Payment'];
 
   @override
   void initState() {
@@ -826,12 +998,19 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                if (widget.isEmergency) const Icon(Icons.emergency, color: Colors.red, size: 28),
+                if (widget.isEmergency)
+                  const Icon(Icons.emergency, color: Colors.red, size: 28),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    widget.isEmergency ? 'Emergency Booking - ${widget.provider['name']}' : 'Book ${widget.provider['name']}',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: widget.isEmergency ? Colors.red : Colors.white),
+                    widget.isEmergency
+                        ? 'Emergency Booking - ${widget.provider['name']}'
+                        : 'Book ${widget.provider['name']}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: widget.isEmergency ? Colors.red : Colors.white,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -859,46 +1038,94 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
                         children: [
                           Icon(Icons.warning_amber, color: Colors.red),
                           SizedBox(width: 12),
-                          Expanded(child: Text('This is an emergency booking. The caretaker has been notified and will respond immediately.', style: TextStyle(color: Colors.red, fontSize: 14))),
+                          Expanded(
+                            child: Text(
+                              'This is an emergency booking. The caretaker has been notified and will respond immediately.',
+                              style: TextStyle(color: Colors.red, fontSize: 14),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
                   ],
-                  const Text('Select Pet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Select Pet',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   _buildPetSelector(),
                   const SizedBox(height: 20),
                   if (!widget.isEmergency) ...[
-                    const Text('Select Date', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Select Date',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     _buildDateSelector(),
                     const SizedBox(height: 20),
                   ],
-                  Text(widget.isEmergency ? 'Response Time Needed' : 'Select Time', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    widget.isEmergency ? 'Response Time Needed' : 'Select Time',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   _buildTimeSelector(),
                   const SizedBox(height: 20),
-                  const Text('Care Level', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Care Level',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   _buildCareLevelSelector(),
                   const SizedBox(height: 20),
-                  Text(widget.isEmergency ? 'Emergency Notes / Situation' : 'Additional Notes', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    widget.isEmergency
+                        ? 'Emergency Notes / Situation'
+                        : 'Additional Notes',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   TextField(
                     maxLines: widget.isEmergency ? 4 : 3,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: widget.isEmergency ? 'Describe the emergency situation...' : 'Any special instructions...',
+                      hintText: widget.isEmergency
+                          ? 'Describe the emergency situation...'
+                          : 'Any special instructions...',
                       hintStyle: const TextStyle(color: Colors.white38),
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                     onChanged: (value) => _notes = value,
                   ),
                   const SizedBox(height: 20),
-                  const Text('Payment Option', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Payment Option',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   _buildPaymentSelector(),
                   const SizedBox(height: 20),
@@ -911,8 +1138,24 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Total Amount', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('₹${widget.provider['price']}', style: const TextStyle(color: Color(0xFFF57C00), fontWeight: FontWeight.bold, fontSize: 24)),
+                        const Text(
+                          'Total Amount',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          widget.provider['price'] != null
+                              ? '₹${widget.provider['price']}'
+                              : 'TBD',
+                          style: const TextStyle(
+                            color: Color(0xFFF57C00),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -929,12 +1172,22 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
               child: ElevatedButton(
                 onPressed: _confirmBooking,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.isEmergency ? Colors.red : const Color(0xFFF57C00),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  backgroundColor: widget.isEmergency
+                      ? Colors.red
+                      : const Color(0xFFF57C00),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                 ),
                 child: Text(
-                  widget.isEmergency ? 'Confirm Emergency Booking' : 'Confirm Booking',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  widget.isEmergency
+                      ? 'Confirm Emergency Booking'
+                      : 'Confirm Booking',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -953,14 +1206,20 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
     }
     return Wrap(
       spacing: 10,
-      children: _pets.map((pet) => ChoiceChip(
-        label: Text(pet),
-        selected: _petName == pet,
-        onSelected: (selected) => setState(() => _petName = pet),
-        selectedColor: const Color(0xFFF57C00),
-        backgroundColor: Colors.white.withOpacity(0.1),
-        labelStyle: TextStyle(color: _petName == pet ? Colors.white : Colors.white70),
-      )).toList(),
+      children: _pets
+          .map(
+            (pet) => ChoiceChip(
+              label: Text(pet),
+              selected: _petName == pet,
+              onSelected: (selected) => setState(() => _petName = pet),
+              selectedColor: const Color(0xFFF57C00),
+              backgroundColor: Colors.white.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: _petName == pet ? Colors.white : Colors.white70,
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -973,7 +1232,9 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
           firstDate: DateTime.now(),
           lastDate: DateTime.now().add(const Duration(days: 60)),
           builder: (context, child) => Theme(
-            data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: Color(0xFFF57C00))),
+            data: ThemeData.dark().copyWith(
+              colorScheme: const ColorScheme.dark(primary: Color(0xFFF57C00)),
+            ),
             child: child!,
           ),
         );
@@ -989,7 +1250,10 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
           children: [
             const Icon(Icons.calendar_today, color: Colors.white70),
             const SizedBox(width: 12),
-            Text('${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+            Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
             const Spacer(),
             const Icon(Icons.arrow_drop_down, color: Colors.white70),
           ],
@@ -1003,28 +1267,42 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: times.map((time) => ChoiceChip(
-        label: Text(time),
-        selected: _selectedTime == time,
-        onSelected: (selected) => setState(() => _selectedTime = time),
-        selectedColor: widget.isEmergency ? Colors.red : const Color(0xFFF57C00),
-        backgroundColor: Colors.white.withOpacity(0.1),
-        labelStyle: TextStyle(color: _selectedTime == time ? Colors.white : Colors.white70),
-      )).toList(),
+      children: times
+          .map(
+            (time) => ChoiceChip(
+              label: Text(time),
+              selected: _selectedTime == time,
+              onSelected: (selected) => setState(() => _selectedTime = time),
+              selectedColor: widget.isEmergency
+                  ? Colors.red
+                  : const Color(0xFFF57C00),
+              backgroundColor: Colors.white.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: _selectedTime == time ? Colors.white : Colors.white70,
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
   Widget _buildCareLevelSelector() {
     return Wrap(
       spacing: 10,
-      children: _careLevels.map((level) => ChoiceChip(
-        label: Text(level),
-        selected: _careLevel == level,
-        onSelected: (selected) => setState(() => _careLevel = level),
-        selectedColor: const Color(0xFFF57C00),
-        backgroundColor: Colors.white.withOpacity(0.1),
-        labelStyle: TextStyle(color: _careLevel == level ? Colors.white : Colors.white70),
-      )).toList(),
+      children: _careLevels
+          .map(
+            (level) => ChoiceChip(
+              label: Text(level),
+              selected: _careLevel == level,
+              onSelected: (selected) => setState(() => _careLevel = level),
+              selectedColor: const Color(0xFFF57C00),
+              backgroundColor: Colors.white.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: _careLevel == level ? Colors.white : Colors.white70,
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -1032,14 +1310,23 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: _paymentOptions.map((option) => ChoiceChip(
-        label: Text(option),
-        selected: _selectedPayment == option,
-        onSelected: (selected) => setState(() => _selectedPayment = option),
-        selectedColor: const Color(0xFFF57C00),
-        backgroundColor: Colors.white.withOpacity(0.1),
-        labelStyle: TextStyle(color: _selectedPayment == option ? Colors.white : Colors.white70),
-      )).toList(),
+      children: _paymentOptions
+          .map(
+            (option) => ChoiceChip(
+              label: Text(option),
+              selected: _selectedPayment == option,
+              onSelected: (selected) =>
+                  setState(() => _selectedPayment = option),
+              selectedColor: const Color(0xFFF57C00),
+              backgroundColor: Colors.white.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: _selectedPayment == option
+                    ? Colors.white
+                    : Colors.white70,
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -1064,7 +1351,8 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
               child: const Text('OK'),
             ),
           ],
-        ));
+        ),
+      );
       return;
     }
 
@@ -1072,7 +1360,7 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
       final res = await ApiService.createBooking({
         "userId": userId,
         "providerId": widget.providerId, // ✅ already passed
-        "petId": petId,                  // ✅ mapped from name
+        "petId": petId, // ✅ mapped from name
         "date": _selectedDate.toIso8601String(),
         "time": _selectedTime,
         "status": widget.isEmergency ? "emergency" : "pending",
@@ -1089,7 +1377,8 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
           builder: (context) => AlertDialog(
             backgroundColor: const Color(0xFF2B2A2A),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Row(
               children: [
                 if (widget.isEmergency)
@@ -1100,8 +1389,8 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
                       ? 'Emergency Booked!'
                       : 'Booking Confirmed!',
                   style: TextStyle(
-                      color:
-                      widget.isEmergency ? Colors.red : Colors.white),
+                    color: widget.isEmergency ? Colors.red : Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -1121,11 +1410,12 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
                 child: Text(
                   'Done',
                   style: TextStyle(
-                      color: widget.isEmergency
-                          ? Colors.red
-                          : const Color(0xFFF57C00)),
+                    color: widget.isEmergency
+                        ? Colors.red
+                        : const Color(0xFFF57C00),
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         );
@@ -1133,9 +1423,9 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
         print("Something went wrong");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 }
