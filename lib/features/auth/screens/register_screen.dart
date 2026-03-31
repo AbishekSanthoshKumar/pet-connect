@@ -91,6 +91,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await prefs.setBool("isLoggedIn", true);
         await prefs.setString("role", data["role"]);
         await prefs.setInt("user_id", data["id"]);
+        await prefs.setString("access_token", data["access_token"]);
+        await prefs.setString("name", data["name"]);
+
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Registration Successful")),
@@ -123,10 +126,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SnackBar(content: Text(data["error"] ?? "Registration failed")),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      print("e $e");
+      print("stackTrace $stackTrace");
     } finally {
       setState(() => isLoading = false);
     }

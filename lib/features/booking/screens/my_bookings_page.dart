@@ -152,16 +152,20 @@ class _MyBookingsPageState extends State<MyBookingsPage>
       List<Map<String, dynamic>> completed = [];
       List<Map<String, dynamic>> cancelled = [];
 
+      print("data ${data.length}");
+
       for (var b in data) {
         // Handle potential null or different date formats
         String formattedDate = "N/A";
         String formattedTime = "N/A";
-        
+
+        print("b $b");
+
         if (b["booking_date"] != null) {
           DateTime parsedDate = DateTime.parse(b["booking_date"]);
           formattedDate = DateFormat("MMM dd, yyyy").format(parsedDate);
         }
-        
+
         formattedTime = b["booking_time"] ?? "N/A";
 
         final booking = {
@@ -170,13 +174,13 @@ class _MyBookingsPageState extends State<MyBookingsPage>
           "providerType": b["role"]?.toString().toUpperCase() ?? "Provider",
           "specialization": b["specialization"] ?? "",
           "petName": b["pet_name"] ?? "",
-          "date": formattedDate,
-          "time": formattedTime,
+          "date": b["date"],
+          "time": b["time"],
           "status": b["status"]?.toString().toLowerCase() ?? "pending",
           "price": b["service_fee"]?.toString() ?? "0",
           "image": "assets/images/dog_and_cat.jpg",
           "trustScore": b["trust_score"] ?? 0,
-          "address": "Service Location",
+          "address":b["address"],
           "notes": b["details"] ?? "",
           "paymentStatus": "pending",
           "reviewGiven": false,
@@ -187,9 +191,11 @@ class _MyBookingsPageState extends State<MyBookingsPage>
             booking["status"] == "confirmed" ||
             booking["status"] == "emergency") {
           upcoming.add(booking);
-        } else if (booking["status"] == "completed" || booking["status"] == "finished") {
+        } else if (booking["status"] == "completed" ||
+            booking["status"] == "finished") {
           completed.add(booking);
-        } else if (booking["status"] == "cancelled" || booking["status"] == "rejected") {
+        } else if (booking["status"] == "cancelled" ||
+            booking["status"] == "rejected") {
           cancelled.add(booking);
         }
       }
@@ -205,16 +211,16 @@ class _MyBookingsPageState extends State<MyBookingsPage>
     }
   }
 
-  Future<void> _cancelBooking(
-    BuildContext context,
-    String bookingId,
-  ) async {
+  Future<void> _cancelBooking(BuildContext context, String bookingId) async {
     final shouldCancel = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2B2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cancel Booking', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Cancel Booking',
+          style: TextStyle(color: Colors.white),
+        ),
         content: const Text(
           'Are you sure? This will decrease the provider\'s trust score.',
           style: TextStyle(color: Colors.white70),
@@ -261,10 +267,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
   ) async {
     final newStatus = currentStatus == 'pending' ? 'paid' : 'pending';
     try {
-      await ApiService.updatePaymentStatus(
-        int.parse(bookingId),
-        newStatus,
-      );
+      await ApiService.updatePaymentStatus(int.parse(bookingId), newStatus);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -525,7 +528,7 @@ class _BookingCard extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   alignment: WrapAlignment.spaceBetween,
                   children: [
-                    if (booking['price'] > 0)
+                    if ((double.tryParse(booking['price'].toString()) ?? 0) > 0)
                       Text(
                         'Amount: ₹${booking['price']}',
                         style: const TextStyle(
@@ -544,7 +547,28 @@ class _BookingCard extends StatelessWidget {
                     const SizedBox(width: 16),
                     if (isUpcoming) ...[
                       ElevatedButton(
-                        onPressed: onCancel,
+                        onPressed: () {
+                          // Say not possible now
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text("Sorry"),
+                                content: const Text(
+                                  "This action is restricted at the moment!.",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text("OK"),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.withOpacity(0.2),
                           foregroundColor: Colors.red,

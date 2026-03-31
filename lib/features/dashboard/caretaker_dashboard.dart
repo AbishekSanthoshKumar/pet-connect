@@ -428,15 +428,15 @@ class _ProfileSheetState extends State<_ProfileSheet> {
   }
 
   void _saveProfile() async {
-    setState(() => isSaving = true);
-    try {
-      final res = await ApiService.updateProfile(widget.caretakerId, {
-        "experience": _experienceController.text.trim(),
-        "specialist": _specialistController.text.trim(),
-        "emergency_available": emergencyAvailable,
-      });
-
-      if (res["status"] == 200) {
+    // setState(() => isSaving = true);
+    // try {
+    //   final res = await ApiService.updateProfile(widget.caretakerId, {
+    //     "experience": _experienceController.text.trim(),
+    //     "specialist": _specialistController.text.trim(),
+    //     "emergency_available": emergencyAvailable,
+    //   });
+    //
+    //   if (res["status"] == 200) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString("experience", _experienceController.text.trim());
         await prefs.setString("specialist", _specialistController.text.trim());
@@ -447,14 +447,14 @@ class _ProfileSheetState extends State<_ProfileSheet> {
         ).showSnackBar(const SnackBar(content: Text("Profile updated")));
         widget.onRefresh();
         Navigator.pop(context);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
-      setState(() => isSaving = false);
-    }
+    //   }
+    // } catch (e) {
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    // } finally {
+    //   setState(() => isSaving = false);
+    // }
   }
 
   @override
@@ -849,9 +849,9 @@ class _AllBookingsSheet extends StatelessWidget {
                     itemCount: bookings.length,
                     itemBuilder: (context, index) {
                       final booking = bookings[index];
-                      final petName = booking['pet']?['name'] ?? 'Unknown Pet';
+                      final petName = booking['pet_name'] ?? 'Unknown Pet';
                       final ownerName =
-                          booking['user']?['name'] ?? 'Unknown Owner';
+                          booking['owner_name'] ?? 'Unknown Owner';
                       final time = booking['time'] ?? '';
                       final date = booking['date'] != null
                           ? booking['date'].toString().split('T')[0]
@@ -1339,17 +1339,17 @@ class _PetDetailsSheet extends StatelessWidget {
     List<Map<String, dynamic>> pets = [];
     final Set<String> seenPetNames = {};
     for (var b in bookings) {
-      if (b['pet'] != null) {
-        final name = b['pet']['name'];
+      if (b['pet_name'] != null) {
+        final name = b['pet_name'];
         if (name != null && !seenPetNames.contains(name)) {
           seenPetNames.add(name);
           pets.add({
             'name': name,
-            'type': b['pet']['type'] ?? 'Unknown',
-            'owner': b['user']?['name'] ?? 'Unknown',
-            'phone': b['user']?['phone'] ?? 'N/A',
-            'condition': b['pet']['condition'] ?? 'Healthy',
-            'lastVisit': b['date']?.toString().split('T')[0] ?? 'N/A',
+            'type': b['type'] ?? 'Unknown',
+            'owner': b['owner_name'] ?? 'Unknown',
+            'phone': b['owner_phone'] ?? 'N/A',
+            'condition': 'Healthy',
+            'lastVisit': b['booking_date']?.toString().split('T')[0] ?? 'N/A',
           });
         }
       }
@@ -1540,14 +1540,14 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
 
   Future<void> _saveAvailability() async {
     try {
-      await ApiService.updateCaretakerAvailability(widget.caretakerId, {
-        "startTime": _startTime.format(context),
-        "endTime": _endTime.format(context),
-        "weekStart": widget.weekStart.toIso8601String(),
-        "weekEnd": widget.weekStart
-            .add(const Duration(days: 6))
-            .toIso8601String(),
-      });
+      // await ApiService.updateCaretakerAvailability(widget.caretakerId, {
+      //   "startTime": _startTime.format(context),
+      //   "endTime": _endTime.format(context),
+      //   "weekStart": widget.weekStart.toIso8601String(),
+      //   "weekEnd": widget.weekStart
+      //       .add(const Duration(days: 6))
+      //       .toIso8601String(),
+      // });
 
       // Step 2: Show confirmation
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1945,8 +1945,8 @@ class _ScoreBreakdownItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
           children: [
             Text(
               label,

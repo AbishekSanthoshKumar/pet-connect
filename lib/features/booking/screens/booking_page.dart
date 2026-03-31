@@ -463,7 +463,7 @@ class _ProviderCard extends StatelessWidget {
                     if (provider['experience'] != null)
                       _InfoChip(
                         icon: Icons.work_history,
-                        label: provider['experience'],
+                        label: provider['experience'].toString(),
                       ),
                     if (provider['availability'] != null)
                       _InfoChip(

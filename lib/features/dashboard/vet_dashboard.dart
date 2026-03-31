@@ -801,12 +801,12 @@ class _AllBookingsSheet extends StatelessWidget {
                     itemCount: bookings.length,
                     itemBuilder: (context, index) {
                       final booking = bookings[index];
-                      final petName = booking['pet']?['name'] ?? 'Unknown Pet';
+                      final petName = booking['pet_name'] ?? 'Unknown Pet';
                       final ownerName =
-                          booking['user']?['name'] ?? 'Unknown Owner';
+                          booking['owner_name'] ?? 'Unknown Owner';
                       final time = booking['time'] ?? '';
-                      final date = booking['date'] != null
-                          ? booking['date'].toString().split('T')[0]
+                      final date = booking['booking_date'] != null
+                          ? booking['booking_date'].toString().split('T')[0]
                           : '';
                       final status = booking['status'] ?? 'pending';
 
@@ -1092,7 +1092,7 @@ class _VisitSummarySheetState extends State<_VisitSummarySheet> {
                   Wrap(
                     spacing: 10,
                     children: bookings.map((b) {
-                      final petName = b['pet']?['name'] ?? 'Unknown Pet';
+                      final petName = b['pet_name'] ?? 'Unknown Pet';
                       return ChoiceChip(
                         label: Text(petName),
                         selected: _selectedBooking == b,
@@ -1126,11 +1126,11 @@ class _VisitSummarySheetState extends State<_VisitSummarySheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Owner: ${_selectedBooking['user']?['name'] ?? 'Unknown'}',
+                                'Owner: ${_selectedBooking['owner_name'] ?? 'Unknown'}',
                                 style: const TextStyle(color: Colors.white),
                               ),
                               Text(
-                                _selectedBooking['user']?['phone'] ?? '',
+                                _selectedBooking['owner_phone'] ?? '',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -1885,8 +1885,8 @@ class _ScoreBreakdownItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
           children: [
             Text(
               label,

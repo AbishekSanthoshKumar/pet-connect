@@ -117,7 +117,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               GestureDetector(
-                                child: Row(
+                                child: Wrap(
                                   children: [
                                     Text(
                                       "Welcome $userName 👋",
