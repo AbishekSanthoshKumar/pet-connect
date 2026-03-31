@@ -115,7 +115,7 @@ class ApiService {
   ) async {
     final res = await http
         .post(
-          Uri.parse("$baseUrl/bookings"),
+          Uri.parse("$baseUrl/api/bookings"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(data),
         )
@@ -126,46 +126,56 @@ class ApiService {
     return {"status": res.statusCode, "data": jsonDecode(res.body)};
   }
 
-  static Future<Map<String, dynamic>> cancelBooking(int bookingId) async {
-    final res = await http
-        .put(
-          Uri.parse("$baseUrl/bookings/$bookingId"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({"status": "cancelled"}),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    print("Cancel response: ${res.body}");
-
-    if (res.statusCode == 200 || res.statusCode == 204) {
-      return {
-        "status": res.statusCode,
-        "data": {"success": true},
-      };
+  static Future<List<dynamic>> getBookingsByOwner(int ownerId) async {
+    final response = await http.get(Uri.parse("$baseUrl/api/bookings/owner/$ownerId"));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
     } else {
-      throw Exception("Failed to cancel booking");
+      throw Exception("Failed to load owner bookings");
     }
+  }
+
+  static Future<List<dynamic>> getBookingsByProvider(int providerId) async {
+    final response = await http.get(Uri.parse("$baseUrl/api/bookings/provider/$providerId"));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to load provider bookings");
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateBookingStatus(
+    int bookingId,
+    String status,
+  ) async {
+    final res = await http.patch(
+      Uri.parse("$baseUrl/api/bookings/$bookingId/status"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"status": status.toUpperCase()}),
+    );
+    if (res.statusCode == 200) {
+      return {"status": res.statusCode, "data": jsonDecode(res.body)};
+    } else {
+      throw Exception("Failed to update booking status");
+    }
+  }
+
+  static Future<Map<String, dynamic>> cancelBooking(int bookingId) async {
+    return await updateBookingStatus(bookingId, "REJECTED");
   }
 
   static Future<Map<String, dynamic>> updatePaymentStatus(
     int bookingId,
     String status,
   ) async {
-    final res = await http
-        .put(
-          Uri.parse("$baseUrl/bookings/$bookingId"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({"paymentStatus": status}),
-        )
-        .timeout(const Duration(seconds: 15));
+    final res = await http.patch(
+      Uri.parse("$baseUrl/api/bookings/$bookingId/status"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"payment_status": status.toUpperCase()}),
+    );
 
-    print("Payment update response: ${res.body}");
-
-    if (res.statusCode == 200 || res.statusCode == 204) {
-      return {
-        "status": res.statusCode,
-        "data": {"success": true},
-      };
+    if (res.statusCode == 200) {
+      return {"status": res.statusCode, "data": jsonDecode(res.body)};
     } else {
       throw Exception("Failed to update payment status");
     }

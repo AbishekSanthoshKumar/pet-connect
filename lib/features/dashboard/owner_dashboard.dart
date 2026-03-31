@@ -205,8 +205,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         ActionCard(
           icon: Icons.search,
           iconColor: Colors.orange,
-          title: "Find Care",
-          subtitle: "Book services",
+          title: "Find Specialists",
+          subtitle: "Vets & Caretakers",
           onTap: () {
             Navigator.push(
               context,

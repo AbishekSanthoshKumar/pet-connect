@@ -62,7 +62,7 @@ class _BookingPageState extends State<BookingPage>
           },
         ),
         title: Text(
-          _startInEmergency ? 'Emergency Booking' : 'Book Service',
+          _startInEmergency ? 'Emergency Specialists' : 'Find Specialists',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -289,13 +289,17 @@ class _ProviderCard extends StatelessWidget {
                       height: 70,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
-                        image: provider['image'] == null
-                            ? null
-                            : DecorationImage(
-                                image: AssetImage(provider['image']),
+                        color: Colors.white12,
+                      ),
+                      child: provider['profile_image'] != null && provider['profile_image'].toString().startsWith('data:image')
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Image.memory(
+                                Uri.parse(provider['profile_image']).data!.contentAsBytes(),
                                 fit: BoxFit.cover,
                               ),
-                      ),
+                            )
+                          : const Icon(Icons.person, color: Colors.white54, size: 40),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -309,7 +313,7 @@ class _ProviderCard extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      provider['name'] ?? 'New Provider',
+                                      provider['name'] ?? 'New Joiner',
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -358,7 +362,7 @@ class _ProviderCard extends StatelessWidget {
                                         color: Colors.white,
                                       ),
                                       SizedBox(width: 4),
-                                      Text(
+                                      const Text(
                                         'EMERGENCY',
                                         style: TextStyle(
                                           color: Colors.white,
@@ -373,12 +377,27 @@ class _ProviderCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            provider['specialization'] ?? (serviceType == 'vet' ? 'Veterinarian' : 'Pet Caretaker'),
+                            provider['specialization'] ?? 
+                            (serviceType == 'vet' ? 'Experienced Veterinarian' : 'Professional Caretaker'),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
                             ),
                           ),
+                          if (provider['bio'] != null && provider['bio'].toString().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                provider['bio'].toString(),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
                           const SizedBox(height: 8),
                           if (serviceType != 'vet' &&
                               provider['trustScore'] != null)
@@ -393,7 +412,7 @@ class _ProviderCard extends StatelessWidget {
                                     ),
                                     decoration: BoxDecoration(
                                       color: _getTrustScoreColor(
-                                        provider['trustScore'] ?? 0,
+                                        (provider['trustScore'] as num?)?.toInt() ?? 0,
                                       ).withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -403,7 +422,7 @@ class _ProviderCard extends StatelessWidget {
                                         Icon(
                                           Icons.verified_user,
                                           color: _getTrustScoreColor(
-                                            provider['trustScore'] ?? 0,
+                                            (provider['trustScore'] as num?)?.toInt() ?? 0,
                                           ),
                                           size: 14,
                                         ),
@@ -412,7 +431,7 @@ class _ProviderCard extends StatelessWidget {
                                           ' Trust: ${provider['trustScore'] ?? 0}/100',
                                           style: TextStyle(
                                             color: _getTrustScoreColor(
-                                              provider['trustScore'] ?? 0,
+                                              (provider['trustScore'] as num?)?.toInt() ?? 0,
                                             ),
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -458,10 +477,9 @@ class _ProviderCard extends StatelessWidget {
                         color: Colors.red,
                       ),
                     Builder(builder: (context) {
-                      final int completed = provider['completedAssignments'] ?? 0;
-                      final int dynamicPrice = (300 + (completed * 50)).clamp(300, 800);
+                      final price = provider['baseRate'] ?? 300;
                       return Text(
-                        '₹$dynamicPrice/visit',
+                        '₹$price/visit',
                         style: const TextStyle(
                           color: Color(0xFFF57C00),
                           fontWeight: FontWeight.bold,
@@ -1358,14 +1376,16 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
 
     try {
       final res = await ApiService.createBooking({
-        "userId": userId,
-        "providerId": widget.providerId, // ✅ already passed
-        "petId": petId, // ✅ mapped from name
-        "date": _selectedDate.toIso8601String(),
-        "time": _selectedTime,
-        "status": widget.isEmergency ? "emergency" : "pending",
-        "notes": _notes,
-        "paymentMethod": _selectedPayment,
+        "owner_id": userId,
+        "provider_id": widget.providerId,
+        "pet_id": petId,
+        "booking_date": _selectedDate.toIso8601String().split('T')[0],
+        "booking_time": _selectedTime.contains('AM') || _selectedTime.contains('PM') 
+            ? _selectedTime // Should ideally be formatted to HH:mm:ss if possible, but let's see backend handling
+            : "00:00:00", // Emergency fallback
+        "service_type": widget.serviceType.toUpperCase(),
+        "details": _notes,
+        "service_fee": widget.provider['base_rate'] ?? 0,
       });
 
       if (res["status"] == 200 || res["status"] == 201) {

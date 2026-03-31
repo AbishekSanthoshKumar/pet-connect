@@ -24,7 +24,9 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
   List<Map<String, String>> earningsHistory = [];
   Map<String, dynamic>? trustData;
   Map<String, dynamic>? dashboardData;
-  DateTime _selectedWeekStart = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+  DateTime _selectedWeekStart = DateTime.now().subtract(
+    Duration(days: DateTime.now().weekday - 1),
+  );
 
   DateTime _getStartOfWeek(DateTime date) {
     return date.subtract(Duration(days: date.weekday - 1));
@@ -49,7 +51,9 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
       userName = prefs.getString("name") ?? "Caretaker";
 
       final dashData = await ApiService.getCaretakerDashboard(caretakerId);
-      final bksData = await ApiService.getCaretakerBookings(caretakerId);
+      final bksData = await ApiService.getBookingsByProvider(
+        caretakerId,
+      ); // ✅ Use new unified booking fetcher
 
       final now = DateTime.now();
 
@@ -150,6 +154,11 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                   const SizedBox(height: 30),
                   _TodayTasksSection(tasks: todayTasks),
                   const SizedBox(height: 30),
+                  _BookingRequestsSection(
+                    bookings: bookings,
+                    onStatusUpdated: loadData,
+                  ),
+                  const SizedBox(height: 30),
                   _TrustScoreSection(trustData: trustData),
                   const SizedBox(height: 30),
                   Center(
@@ -188,6 +197,22 @@ class _CaretakerHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        GestureDetector(
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Good morning, $userName",
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           "You have $todayCount tasks today",
@@ -222,7 +247,6 @@ class _CaretakerActionGrid extends StatefulWidget {
 }
 
 class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
-
   @override
   Widget build(BuildContext context) {
     return GridView.count(
@@ -274,6 +298,13 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
           subtitle: "Track income",
           onTap: () => _showEarningsSheet(context),
         ),
+        ActionCard(
+          icon: Icons.person,
+          iconColor: Colors.orangeAccent,
+          title: "Edit Profile",
+          subtitle: "Update experience & info",
+          onTap: () => _showProfileSheet(context),
+        ),
       ],
     );
   }
@@ -312,8 +343,10 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) =>
-          _VisitSummarySheet(bookings: widget.bookings, providerId: widget.caretakerId),
+      builder: (context) => _VisitSummarySheet(
+        bookings: widget.bookings,
+        providerId: widget.caretakerId,
+      ),
     );
   }
 
@@ -335,6 +368,18 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
     );
   }
 
+  void _showProfileSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _ProfileSheet(
+        caretakerId: widget.caretakerId,
+        onRefresh: widget.onRefresh,
+      ),
+    );
+  }
+
   void _showAvailabilityDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -349,6 +394,147 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
         widget.onRefresh();
       }
     });
+  }
+}
+
+class _ProfileSheet extends StatefulWidget {
+  final int caretakerId;
+  final VoidCallback onRefresh;
+  const _ProfileSheet({required this.caretakerId, required this.onRefresh});
+
+  @override
+  State<_ProfileSheet> createState() => _ProfileSheetState();
+}
+
+class _ProfileSheetState extends State<_ProfileSheet> {
+  final _experienceController = TextEditingController();
+  final _specialistController = TextEditingController();
+  bool emergencyAvailable = false;
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  void _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _experienceController.text = prefs.getString("experience") ?? "";
+      _specialistController.text = prefs.getString("specialist") ?? "";
+      emergencyAvailable = prefs.getBool("emergency_available") ?? false;
+    });
+  }
+
+  void _saveProfile() async {
+    setState(() => isSaving = true);
+    try {
+      final res = await ApiService.updateProfile(widget.caretakerId, {
+        "experience": _experienceController.text.trim(),
+        "specialist": _specialistController.text.trim(),
+        "emergency_available": emergencyAvailable,
+      });
+
+      if (res["status"] == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("experience", _experienceController.text.trim());
+        await prefs.setString("specialist", _specialistController.text.trim());
+        await prefs.setBool("emergency_available", emergencyAvailable);
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Profile updated")));
+        widget.onRefresh();
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF2B2A2A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Update Profile",
+              style: TextStyle(
+                fontSize: 22,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _experienceController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Experience (Years)",
+                labelStyle: TextStyle(color: Colors.white70),
+                prefixIcon: Icon(Icons.access_time, color: Colors.white70),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _specialistController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Specialised Area",
+                labelStyle: TextStyle(color: Colors.white70),
+                prefixIcon: Icon(Icons.star_outline, color: Colors.white70),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text(
+                "Emergency Available",
+                style: TextStyle(color: Colors.white70),
+              ),
+              value: emergencyAvailable,
+              onChanged: (val) => setState(() => emergencyAvailable = val),
+              activeColor: const Color(0xFFF57C00),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: isSaving ? null : _saveProfile,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF57C00),
+                ),
+                child: isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "Save Changes",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -497,16 +683,28 @@ class _ScheduleSheet extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.chevron_left, color: Colors.white70),
-                      onPressed: () => onWeekChanged(weekStart.subtract(const Duration(days: 7))),
+                      icon: const Icon(
+                        Icons.chevron_left,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () => onWeekChanged(
+                        weekStart.subtract(const Duration(days: 7)),
+                      ),
                     ),
                     Text(
                       DateFormat('MMM d').format(weekStart),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.chevron_right, color: Colors.white70),
-                      onPressed: () => onWeekChanged(weekStart.add(const Duration(days: 7))),
+                      icon: const Icon(
+                        Icons.chevron_right,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () =>
+                          onWeekChanged(weekStart.add(const Duration(days: 7))),
                     ),
                   ],
                 ),
@@ -521,7 +719,7 @@ class _ScheduleSheet extends StatelessWidget {
                 final date = weekStart.add(Duration(days: index));
                 final dayName = DateFormat('EEE').format(date);
                 final fullDayName = DateFormat('EEEE').format(date);
-                
+
                 // Search for availability in the map by 'Mon', 'Tue', etc.
                 final shortDay = dayName.substring(0, 3);
                 final dayData = availability?[shortDay];
@@ -1327,7 +1525,10 @@ class _DetailRow extends StatelessWidget {
 class _AvailabilitySheet extends StatefulWidget {
   final int caretakerId;
   final DateTime weekStart;
-  const _AvailabilitySheet({required this.caretakerId, required this.weekStart});
+  const _AvailabilitySheet({
+    required this.caretakerId,
+    required this.weekStart,
+  });
 
   @override
   State<_AvailabilitySheet> createState() => _AvailabilitySheetState();
@@ -1343,7 +1544,9 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
         "startTime": _startTime.format(context),
         "endTime": _endTime.format(context),
         "weekStart": widget.weekStart.toIso8601String(),
-        "weekEnd": widget.weekStart.add(const Duration(days: 6)).toIso8601String(),
+        "weekEnd": widget.weekStart
+            .add(const Duration(days: 6))
+            .toIso8601String(),
       });
 
       // Step 2: Show confirmation
@@ -1780,6 +1983,158 @@ class _ScoreBreakdownItem extends StatelessWidget {
   }
 }
 
+class _BookingRequestsSection extends StatelessWidget {
+  final List<dynamic> bookings;
+  final VoidCallback onStatusUpdated;
+
+  const _BookingRequestsSection({
+    required this.bookings,
+    required this.onStatusUpdated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pendingBookings = bookings
+        .where((b) => b['status'] == 'PENDING')
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Booking Requests",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        if (pendingBookings.isEmpty)
+          const Text(
+            "No pending requests",
+            style: TextStyle(color: Colors.white70),
+          ),
+        ...pendingBookings.map((booking) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: NeumorphicGlassContainer(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "${booking['pet_name'] ?? 'Pet'} - ${booking['owner_name'] ?? 'Owner'}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          booking['booking_date']?.toString().split('T')[0] ??
+                              '',
+                          style: const TextStyle(
+                            color: Color(0xFFF57C00),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Time: ${booking['booking_time'] ?? 'N/A'}",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (booking['details'] != null &&
+                        booking['details'].isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          "Note: ${booking['details']}",
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _updateStatus(
+                              context,
+                              booking['booking_id'],
+                              'ACCEPTED',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text("Accept"),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _updateStatus(
+                              context,
+                              booking['booking_id'],
+                              'REJECTED',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text("Reject"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Future<void> _updateStatus(
+    BuildContext context,
+    int bookingId,
+    String status,
+  ) async {
+    try {
+      await ApiService.updateBookingStatus(bookingId, status);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Booking $status")));
+      onStatusUpdated();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+}
+
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
@@ -1797,6 +2152,7 @@ class _StatItem extends StatelessWidget {
             color: Color(0xFFF57C00),
           ),
         ),
+        const SizedBox(height: 4),
         Text(
           label,
           style: const TextStyle(fontSize: 10, color: Colors.white54),

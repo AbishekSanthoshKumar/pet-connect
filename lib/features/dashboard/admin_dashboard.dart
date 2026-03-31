@@ -379,11 +379,6 @@ void _showVetApplications(
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            vet["clinic"] ?? "Private Clinic",
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
           Row(
             children: [
               const Icon(Icons.description, size: 12, color: Colors.blueAccent),

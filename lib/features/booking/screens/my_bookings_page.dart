@@ -146,46 +146,52 @@ class _MyBookingsPageState extends State<MyBookingsPage>
     if (userId == null) return;
 
     try {
-      final data = await ApiService.getBookings(userId);
+      final data = await ApiService.getBookingsByOwner(userId);
 
       List<Map<String, dynamic>> upcoming = [];
       List<Map<String, dynamic>> completed = [];
       List<Map<String, dynamic>> cancelled = [];
 
       for (var b in data) {
-        DateTime parsedDate = DateTime.parse(b["date"]);
-
-        String formattedDate = DateFormat("MMM dd, yyyy").format(parsedDate);
-        String formattedTime = DateFormat("hh:mm a").format(parsedDate);
+        // Handle potential null or different date formats
+        String formattedDate = "N/A";
+        String formattedTime = "N/A";
+        
+        if (b["booking_date"] != null) {
+          DateTime parsedDate = DateTime.parse(b["booking_date"]);
+          formattedDate = DateFormat("MMM dd, yyyy").format(parsedDate);
+        }
+        
+        formattedTime = b["booking_time"] ?? "N/A";
 
         final booking = {
-          "id": b["id"].toString(),
-          "providerName": b["provider"]?["name"] ?? "Unknown",
-          "providerType": b["provider"]?["type"] ?? "",
-          "specialization": b["provider"]?["specialization"] ?? "",
-          "petName": b["pet"]?["name"] ?? "",
+          "id": b["booking_id"].toString(),
+          "providerName": b["provider_name"] ?? "Unknown",
+          "providerType": b["role"]?.toString().toUpperCase() ?? "Provider",
+          "specialization": b["specialization"] ?? "",
+          "petName": b["pet_name"] ?? "",
           "date": formattedDate,
           "time": formattedTime,
-          "status": b["status"],
-          "price": b["provider"]?["price"] ?? 0,
+          "status": b["status"]?.toString().toLowerCase() ?? "pending",
+          "price": b["service_fee"]?.toString() ?? "0",
           "image": "assets/images/dog_and_cat.jpg",
-          "trustScore": b["provider"]?["trustScore"] ?? 0,
+          "trustScore": b["trust_score"] ?? 0,
           "address": "Service Location",
-          "notes": b["notes"] ?? "",
-          "paymentStatus": b["paymentStatus"] ?? "pending",
-          "reviewGiven": b["reviewGiven"] ?? false,
+          "notes": b["details"] ?? "",
+          "paymentStatus": "pending",
+          "reviewGiven": false,
         };
 
-        if (b["status"] == "pending" ||
-            b["status"] == "confirmed" ||
-            b["status"] == "emergency") {
+        if (booking["status"] == "pending" ||
+            booking["status"] == "accepted" ||
+            booking["status"] == "confirmed" ||
+            booking["status"] == "emergency") {
           upcoming.add(booking);
-        } else if (b["status"] == "completed") {
+        } else if (booking["status"] == "completed" || booking["status"] == "finished") {
           completed.add(booking);
-        } else if (b["status"] == "cancelled") {
+        } else if (booking["status"] == "cancelled" || booking["status"] == "rejected") {
           cancelled.add(booking);
         }
-
       }
 
       setState(() {

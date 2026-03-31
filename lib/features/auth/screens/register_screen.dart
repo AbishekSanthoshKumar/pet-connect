@@ -16,9 +16,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  String selectedRole = "Owner";
-  bool isLoading = false;
-
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -26,12 +23,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _adminCodeController = TextEditingController();
+  final _specializationController = TextEditingController();
+  final _experienceController = TextEditingController();
+  final _licenseController = TextEditingController();
+
+  String selectedRole = "Owner";
+  bool isLoading = false;
 
   // Role-specific controllers
-  final _clinicController = TextEditingController();
-  final _licenseController = TextEditingController();
-  final _experienceController = TextEditingController();
-  final _specialistController = TextEditingController();
+
 
   @override
   void dispose() {
@@ -42,10 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _adminCodeController.dispose();
-    _clinicController.dispose();
-    _licenseController.dispose();
+    _specializationController.dispose();
     _experienceController.dispose();
-    _specialistController.dispose();
+    _licenseController.dispose();
     super.dispose();
   }
 
@@ -79,16 +78,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "phone": _phoneController.text.trim(),
         "password": _passwordController.text.trim(),
         "role": selectedRole.toLowerCase(),
-        "clinic": selectedRole == "Vet" ? _clinicController.text.trim() : null,
-        "license": selectedRole == "Vet"
-            ? _licenseController.text.trim()
-            : null,
-        "specialist": (selectedRole == "Vet" || selectedRole == "Caretaker")
-            ? _specialistController.text.trim()
-            : null,
-        "experience": selectedRole == "Caretaker"
-            ? _experienceController.text.trim()
-            : null,
+        "specialist": _specializationController.text.trim(),
+        "experience": _experienceController.text.trim(),
+        "license": _licenseController.text.trim(),
       });
 
       final statusCode = res["statusCode"];
@@ -248,50 +240,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               const SizedBox(height: 12),
                               _buildRoleSelector(),
-                              const SizedBox(height: 16),
+                              if (selectedRole == "Vet" || selectedRole == "Caretaker") ...[
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _specializationController,
+                                  label: selectedRole == "Vet" ? "Specialization (e.g. Surgery)" : "Service Focus",
+                                  icon: Icons.workspace_premium,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _experienceController,
+                                  label: "Experience (Years/Details)",
+                                  icon: Icons.history,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _licenseController,
+                                  label: "License Number / ID",
+                                  icon: Icons.badge,
+                                ),
+                              ],
+                              const SizedBox(height: 24),
                               if (selectedRole == "Admin") ...[
                                 _buildTextField(
                                   controller: _adminCodeController,
                                   label: "Admin Access Code *",
                                   icon: Icons.vpn_key,
                                   obscureText: true,
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-                              if (selectedRole == "Vet") ...[
-                                _buildTextField(
-                                  controller: _clinicController,
-                                  label: "Clinic Name",
-                                  icon: Icons.local_hospital_outlined,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTextField(
-                                  controller: _specialistController,
-                                  label:
-                                      "Specialist Area (e.g. Surgery, Training)",
-                                  icon: Icons.star_outline,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTextField(
-                                  controller: _licenseController,
-                                  label: "Medical License Number",
-                                  icon: Icons.verified_user_outlined,
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-                              if (selectedRole == "Caretaker") ...[
-                                _buildTextField(
-                                  controller: _specialistController,
-                                  label:
-                                      "Specialised Area (e.g. Grooming, Senior Care)",
-                                  icon: Icons.star_outline,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTextField(
-                                  controller: _experienceController,
-                                  label: "Experience (Years)",
-                                  icon: Icons.access_time,
-                                  keyboardType: TextInputType.number,
                                 ),
                                 const SizedBox(height: 16),
                               ],

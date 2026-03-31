@@ -50,7 +50,7 @@ class _VetDashboardState extends State<VetDashboard> {
       vetId = prefs.getInt("user_id") ?? 0;
       userName = prefs.getString("name") ?? "Dr. Vet";
       final dashData = await ApiService.getVetDashboard(vetId);
-      final bksData = await ApiService.getVetBookings(vetId);
+      final bksData = await ApiService.getBookingsByProvider(vetId); // ✅ Use new unified booking fetcher
       final now = DateTime.now();
       final todayApptsList = bksData.where((b) {
         if (b['date'] == null) return false;
@@ -148,6 +148,11 @@ class _VetDashboardState extends State<VetDashboard> {
                   ),
                   SizedBox(height: 30),
                   _TodayAppointmentsSection(bookings: bookings),
+                  const SizedBox(height: 30),
+                  _BookingRequestsSection(
+                    bookings: bookings,
+                    onStatusUpdated: loadData,
+                  ),
                   const SizedBox(height: 30),
                   _TrustScoreSection(trustData: trustData),
                   const SizedBox(height: 30),
@@ -289,6 +294,13 @@ class _VetActionGridState extends State<_VetActionGrid> {
           subtitle: "Track income",
           onTap: () => _showEarningsSheet(context),
         ),
+        ActionCard(
+          icon: Icons.person,
+          iconColor: Colors.tealAccent,
+          title: "Edit Profile",
+          subtitle: "Update license & info",
+          onTap: () => _showProfileSheet(context),
+        ),
       ],
     );
   }
@@ -363,6 +375,129 @@ class _VetActionGridState extends State<_VetActionGrid> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => _EarningsSheet(earnings: widget.earningsHistory),
+    );
+  }
+  
+  void _showProfileSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _ProfileSheet(vetId: widget.vetId, onRefresh: widget.onRefresh),
+    );
+  }
+}
+
+class _ProfileSheet extends StatefulWidget {
+  final int vetId;
+  final VoidCallback onRefresh;
+  const _ProfileSheet({required this.vetId, required this.onRefresh});
+
+  @override
+  State<_ProfileSheet> createState() => _ProfileSheetState();
+}
+
+class _ProfileSheetState extends State<_ProfileSheet> {
+  final _licenseController = TextEditingController();
+  final _specialistController = TextEditingController();
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  void _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _licenseController.text = prefs.getString("license") ?? "";
+      _specialistController.text = prefs.getString("specialist") ?? "";
+    });
+  }
+
+  void _saveProfile() async {
+    setState(() => isSaving = true);
+    try {
+      final res = await ApiService.updateProfile(widget.vetId, {
+        "license": _licenseController.text.trim(),
+        "specialist": _specialistController.text.trim(),
+      });
+
+      if (res["status"] == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("license", _licenseController.text.trim());
+        await prefs.setString("specialist", _specialistController.text.trim());
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile updated")),
+        );
+        widget.onRefresh();
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF2B2A2A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Update Profile",
+              style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _licenseController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Medical License Number",
+                labelStyle: TextStyle(color: Colors.white70),
+                prefixIcon: Icon(Icons.verified_user_outlined, color: Colors.white70),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _specialistController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Specialised Area",
+                labelStyle: TextStyle(color: Colors.white70),
+                prefixIcon: Icon(Icons.star_outline, color: Colors.white70),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: isSaving ? null : _saveProfile,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF57C00)),
+                child: isSaving 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Save Changes", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1788,6 +1923,128 @@ class _ScoreBreakdownItem extends StatelessWidget {
   }
 }
 
+class _BookingRequestsSection extends StatelessWidget {
+  final List<dynamic> bookings;
+  final VoidCallback onStatusUpdated;
+
+  const _BookingRequestsSection({
+    required this.bookings,
+    required this.onStatusUpdated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pendingBookings = bookings.where((b) => b['status'] == 'PENDING').toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Booking Requests",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        if (pendingBookings.isEmpty)
+          const Text(
+            "No pending requests",
+            style: TextStyle(color: Colors.white70),
+          ),
+        ...pendingBookings.map((booking) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: NeumorphicGlassContainer(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "${booking['pet_name'] ?? 'Pet'} - ${booking['owner_name'] ?? 'Owner'}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          booking['booking_date']?.toString().split('T')[0] ?? '',
+                          style: const TextStyle(color: Color(0xFFF57C00), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Time: ${booking['booking_time'] ?? 'N/A'}",
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    if (booking['details'] != null && booking['details'].isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          "Note: ${booking['details']}",
+                          style: const TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _updateStatus(context, booking['booking_id'], 'ACCEPTED'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text("Accept"),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _updateStatus(context, booking['booking_id'], 'REJECTED'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text("Reject"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Future<void> _updateStatus(BuildContext context, int bookingId, String status) async {
+    try {
+      await ApiService.updateBookingStatus(bookingId, status);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Booking $status")),
+      );
+      onStatusUpdated();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+}
+
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
@@ -1813,7 +2070,3 @@ class _StatItem extends StatelessWidget {
     );
   }
 }
-
-//nami
-//daisy
-//kayden
