@@ -3,11 +3,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // // Hosted Server
-  // static const String baseUrl = "https://pet-connect-server.onrender.com";
+  // Hosted Server
+  static const String baseUrl = "http://3.110.153.144:5000";
 
-  // Local DB
-  static const String baseUrl = "http://192.168.1.4:5000";
+  // // Local DB
+  // static const String baseUrl = "http://192.168.1.4:5000";
 
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

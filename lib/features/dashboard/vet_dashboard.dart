@@ -1271,16 +1271,16 @@ class _PetDetailsSheet extends StatelessWidget {
     List<Map<String, dynamic>> pets = [];
     final Set<String> seenPetNames = {};
     for (var b in bookings) {
-      if (b['pet'] != null) {
-        final name = b['pet']['name'];
+      if (b['pet_name'] != null) {
+        final name = b['pet_name'];
         if (name != null && !seenPetNames.contains(name)) {
           seenPetNames.add(name);
           pets.add({
             'name': name,
-            'type': b['pet']['type'] ?? 'Unknown',
-            'owner': b['user']?['name'] ?? 'Unknown',
-            'phone': b['user']?['phone'] ?? 'N/A',
-            'condition': b['pet']['condition'] ?? 'Healthy',
+            'type': b['type'] ?? 'Unknown',
+            'owner': b['owner_name'] ?? 'Unknown',
+            'phone': b['owner_phone'] ?? 'N/A',
+            'condition': 'Healthy',
             'lastVisit': b['date']?.toString().split('T')[0] ?? 'N/A',
           });
         }
