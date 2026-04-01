@@ -256,13 +256,13 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
       mainAxisSpacing: 20,
       crossAxisSpacing: 20,
       children: [
-        ActionCard(
-          icon: Icons.schedule,
-          iconColor: Colors.blue,
-          title: "Schedule",
-          subtitle: "Manage your availability",
-          onTap: () => _showScheduleDialog(context),
-        ),
+        // ActionCard(
+        //   icon: Icons.schedule,
+        //   iconColor: Colors.blue,
+        //   title: "Schedule",
+        //   subtitle: "Manage your availability",
+        //   onTap: () => _showScheduleDialog(context),
+        // ),
         ActionCard(
           icon: Icons.calendar_month,
           iconColor: Colors.purple,
@@ -334,7 +334,10 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => _AllBookingsSheet(bookings: widget.bookings),
+      builder: (context) => _AllBookingsSheet(
+        bookings: widget.bookings,
+        onStatusUpdated: widget.onRefresh,
+      ),
     );
   }
 
@@ -400,6 +403,7 @@ class _CaretakerActionGridState extends State<_CaretakerActionGrid> {
 class _ProfileSheet extends StatefulWidget {
   final int caretakerId;
   final VoidCallback onRefresh;
+
   const _ProfileSheet({required this.caretakerId, required this.onRefresh});
 
   @override
@@ -437,16 +441,16 @@ class _ProfileSheetState extends State<_ProfileSheet> {
     //   });
     //
     //   if (res["status"] == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString("experience", _experienceController.text.trim());
-        await prefs.setString("specialist", _specialistController.text.trim());
-        await prefs.setBool("emergency_available", emergencyAvailable);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("experience", _experienceController.text.trim());
+    await prefs.setString("specialist", _specialistController.text.trim());
+    await prefs.setBool("emergency_available", emergencyAvailable);
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Profile updated")));
-        widget.onRefresh();
-        Navigator.pop(context);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Profile updated")));
+    widget.onRefresh();
+    Navigator.pop(context);
     //   }
     // } catch (e) {
     //   ScaffoldMessenger.of(
@@ -540,6 +544,7 @@ class _ProfileSheetState extends State<_ProfileSheet> {
 
 class _EarningsSheet extends StatelessWidget {
   final List<dynamic> earnings;
+
   const _EarningsSheet({required this.earnings});
 
   @override
@@ -745,6 +750,7 @@ class _ScheduleItem extends StatelessWidget {
   final String day;
   final String time;
   final bool isAvailable;
+
   const _ScheduleItem({
     required this.day,
     required this.time,
@@ -804,7 +810,12 @@ class _ScheduleItem extends StatelessWidget {
 
 class _AllBookingsSheet extends StatelessWidget {
   final List<dynamic> bookings;
-  const _AllBookingsSheet({required this.bookings});
+  final VoidCallback onStatusUpdated;
+
+  const _AllBookingsSheet({
+    required this.bookings,
+    required this.onStatusUpdated,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -924,6 +935,49 @@ class _AllBookingsSheet extends StatelessWidget {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 4),
+                            //   Complete Booking Button
+                            if(status == 'pending')
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () => _updateStatus(
+                                      context,
+                                      booking['id'],
+                                      'COMPLETED',
+                                    ).then((value) => Navigator.pop(context)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text("Complete"),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () => _updateStatus(
+                                      context,
+                                      booking['id'],
+                                      'REJECTED',
+                                    ).then((value) => Navigator.pop(context),),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      side: const BorderSide(color: Colors.red),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text("Reject"),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       );
@@ -934,11 +988,30 @@ class _AllBookingsSheet extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _updateStatus(
+    BuildContext context,
+    int bookingId,
+    String status,
+  ) async {
+    try {
+      await ApiService.updateBookingStatus(bookingId, status);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Booking $status")));
+      onStatusUpdated();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
 }
 
 class _VisitSummarySheet extends StatefulWidget {
   final List<dynamic> bookings;
   final int providerId;
+
   const _VisitSummarySheet({required this.bookings, required this.providerId});
 
   @override
@@ -959,14 +1032,14 @@ class _VisitSummarySheetState extends State<_VisitSummarySheet> {
     // Parse owners and pets from bookings
     final Set<String> seenPetNames = {};
     for (var b in widget.bookings) {
-      if (b['pet'] != null) {
-        final petName = b['pet']['name'];
+      if (b['pet_name'] != null) {
+        final petName = b['pet_name'];
         if (petName != null && !seenPetNames.contains(petName)) {
           seenPetNames.add(petName);
           _petOwners.add({
             'pet': petName,
-            'owner': b['user']?['name'] ?? 'Unknown Owner',
-            'phone': b['user']?['phone'] ?? '+91 XXXXXXXXXX',
+            'owner': b['owner_name'] ?? 'Unknown Owner',
+            'phone': b['owner_phone'] ?? '+91 XXXXXXXXXX',
           });
         }
       }
@@ -1332,6 +1405,7 @@ class _VisitSummarySheetState extends State<_VisitSummarySheet> {
 
 class _PetDetailsSheet extends StatelessWidget {
   final List<dynamic> bookings;
+
   const _PetDetailsSheet({required this.bookings});
 
   @override
@@ -1500,6 +1574,7 @@ class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+
   const _DetailRow({
     required this.icon,
     required this.label,
@@ -1525,6 +1600,7 @@ class _DetailRow extends StatelessWidget {
 class _AvailabilitySheet extends StatefulWidget {
   final int caretakerId;
   final DateTime weekStart;
+
   const _AvailabilitySheet({
     required this.caretakerId,
     required this.weekStart,
@@ -1698,6 +1774,7 @@ class _TimeSelector extends StatelessWidget {
   final String label;
   final TimeOfDay time;
   final VoidCallback onTap;
+
   const _TimeSelector({
     required this.label,
     required this.time,
@@ -1931,6 +2008,7 @@ class _ScoreBreakdownItem extends StatelessWidget {
   final int value;
   final int total;
   final double maxPoints;
+
   const _ScoreBreakdownItem({
     required this.label,
     required this.value,
@@ -2138,6 +2216,7 @@ class _BookingRequestsSection extends StatelessWidget {
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
+
   const _StatItem({required this.label, required this.value});
 
   @override

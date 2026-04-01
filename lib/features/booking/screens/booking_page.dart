@@ -1399,7 +1399,7 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: Row(
+            title: Wrap(
               children: [
                 if (widget.isEmergency)
                   const Icon(Icons.check_circle, color: Colors.red, size: 28),
@@ -1411,6 +1411,7 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
                   style: TextStyle(
                     color: widget.isEmergency ? Colors.red : Colors.white,
                   ),
+                  overflow: TextOverflow.visible,
                 ),
               ],
             ),
