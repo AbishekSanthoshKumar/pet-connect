@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/features/dashboard/vet_dashboard.dart';
 import 'package:frontend/services/api_service.dart';
 import 'package:frontend/shared/widgets/action_card.dart';
 import 'package:frontend/shared/widgets/glassy_components.dart';
@@ -70,6 +71,17 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
         bookings = bksData;
         todayTasks = todayList.take(3).toList();
         todayTasksCount = todayList.length;
+
+        DateFormat format = DateFormat("h:mm a");
+        String startStr = dashData['availability']['availability_start'] ?? '9:00 AM';
+        String endStr = dashData['availability']['availability_end'] ?? '5:00 PM';
+
+        Availability.startTime = format.parse(startStr);
+        Availability.endTime = format.parse(endStr);
+        print("startTime ${Availability.startTime}");
+        print("endTime ${Availability.endTime}");
+
+
 
         List<Map<String, String>> parsedEarnings = [];
         if (dashData['earningsHistory'] != null) {
@@ -1614,16 +1626,24 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 17, minute: 0);
 
+  @override
+  void initState() {
+// TODO: implement initState
+    super.initState();
+
+// Use Availability.startTime to set the initial time
+    _startTime = TimeOfDay.fromDateTime(Availability.startTime);
+    _endTime = TimeOfDay.fromDateTime(Availability.endTime);
+  }
+
   Future<void> _saveAvailability() async {
     try {
-      // await ApiService.updateCaretakerAvailability(widget.caretakerId, {
-      //   "startTime": _startTime.format(context),
-      //   "endTime": _endTime.format(context),
-      //   "weekStart": widget.weekStart.toIso8601String(),
-      //   "weekEnd": widget.weekStart
-      //       .add(const Duration(days: 6))
-      //       .toIso8601String(),
-      // });
+
+      await ApiService.saveAvailability({
+        "vetId": widget.caretakerId,
+        "startTime": _startTime.format(context),
+        "endTime": _endTime.format(context),
+      });
 
       // Step 2: Show confirmation
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1680,10 +1700,6 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                ),
-                Text(
-                  "Week: ${DateFormat('MMM d').format(widget.weekStart)} - ${DateFormat('MMM d').format(widget.weekStart.add(const Duration(days: 6)))}",
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),

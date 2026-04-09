@@ -291,15 +291,25 @@ class _ProviderCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(15),
                         color: Colors.white12,
                       ),
-                      child: provider['profile_image'] != null && provider['profile_image'].toString().startsWith('data:image')
+                      child:
+                          provider['profile_image'] != null &&
+                              provider['profile_image'].toString().startsWith(
+                                'data:image',
+                              )
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(15),
                               child: Image.memory(
-                                Uri.parse(provider['profile_image']).data!.contentAsBytes(),
+                                Uri.parse(
+                                  provider['profile_image'],
+                                ).data!.contentAsBytes(),
                                 fit: BoxFit.cover,
                               ),
                             )
-                          : const Icon(Icons.person, color: Colors.white54, size: 40),
+                          : const Icon(
+                              Icons.person,
+                              color: Colors.white54,
+                              size: 40,
+                            ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -320,7 +330,9 @@ class _ProviderCard extends StatelessWidget {
                                         color: Colors.white,
                                       ),
                                     ),
-                                    if ((provider['completedAssignments'] ?? 0) == 0)
+                                    if ((provider['completedAssignments'] ??
+                                            0) ==
+                                        0)
                                       Container(
                                         margin: const EdgeInsets.only(top: 4),
                                         padding: const EdgeInsets.symmetric(
@@ -329,7 +341,9 @@ class _ProviderCard extends StatelessWidget {
                                         ),
                                         decoration: BoxDecoration(
                                           color: Colors.blueAccent,
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                         child: const Text(
                                           'NEW JOINED',
@@ -377,14 +391,17 @@ class _ProviderCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            provider['specialization'] ?? 
-                            (serviceType == 'vet' ? 'Experienced Veterinarian' : 'Professional Caretaker'),
+                            provider['specialization'] ??
+                                (serviceType == 'vet'
+                                    ? 'Experienced Veterinarian'
+                                    : 'Professional Caretaker'),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
                             ),
                           ),
-                          if (provider['bio'] != null && provider['bio'].toString().isNotEmpty)
+                          if (provider['bio'] != null &&
+                              provider['bio'].toString().isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
@@ -412,7 +429,9 @@ class _ProviderCard extends StatelessWidget {
                                     ),
                                     decoration: BoxDecoration(
                                       color: _getTrustScoreColor(
-                                        (provider['trustScore'] as num?)?.toInt() ?? 0,
+                                        (provider['trustScore'] as num?)
+                                                ?.toInt() ??
+                                            0,
                                       ).withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -422,7 +441,9 @@ class _ProviderCard extends StatelessWidget {
                                         Icon(
                                           Icons.verified_user,
                                           color: _getTrustScoreColor(
-                                            (provider['trustScore'] as num?)?.toInt() ?? 0,
+                                            (provider['trustScore'] as num?)
+                                                    ?.toInt() ??
+                                                0,
                                           ),
                                           size: 14,
                                         ),
@@ -431,7 +452,9 @@ class _ProviderCard extends StatelessWidget {
                                           ' Trust: ${provider['trustScore'] ?? 0}/100',
                                           style: TextStyle(
                                             color: _getTrustScoreColor(
-                                              (provider['trustScore'] as num?)?.toInt() ?? 0,
+                                              (provider['trustScore'] as num?)
+                                                      ?.toInt() ??
+                                                  0,
                                             ),
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -476,17 +499,19 @@ class _ProviderCard extends StatelessWidget {
                         label: '24/7',
                         color: Colors.red,
                       ),
-                    Builder(builder: (context) {
-                      final price = provider['baseRate'] ?? 300;
-                      return Text(
-                        '₹$price/visit',
-                        style: const TextStyle(
-                          color: Color(0xFFF57C00),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        final price = provider['baseRate'] ?? 300;
+                        return Text(
+                          '₹$price/visit',
+                          style: const TextStyle(
+                            color: Color(0xFFF57C00),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -824,6 +849,7 @@ class _ScoreRow extends StatelessWidget {
     this.completedAssignments,
     this.isNegative = false,
   });
+
   @override
   Widget build(BuildContext context) {
     final double percentage = maxValue > 0 ? (value / maxValue) : 0;
@@ -856,10 +882,10 @@ class _ScoreRow extends StatelessWidget {
               isNegative
                   ? Colors.red
                   : percentage >= 0.8
-                      ? Colors.green
-                      : percentage >= 0.6
-                          ? Colors.blue
-                          : Colors.orange,
+                  ? Colors.green
+                  : percentage >= 0.6
+                  ? Colors.blue
+                  : Colors.orange,
             ),
             minHeight: 6,
           ),
@@ -880,7 +906,9 @@ class _ScoreRow extends StatelessWidget {
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
+
   const _StatItem({required this.label, required this.value});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1096,6 +1124,17 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  if (widget.provider['availability_start'] != null &&
+                      widget.provider['availability_end'] != null)
+                    Text(
+                      "(Available between ${widget.provider['availability_start']} and ${widget.provider['availability_end']})",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      overflow: TextOverflow.visible,
+                    ),
                   const SizedBox(height: 10),
                   _buildTimeSelector(),
                   const SizedBox(height: 20),
@@ -1380,7 +1419,8 @@ class _BookingFormSheetState extends State<_BookingFormSheet> {
         "provider_id": widget.providerId,
         "pet_id": petId,
         "booking_date": _selectedDate.toIso8601String().split('T')[0],
-        "booking_time": _selectedTime.contains('AM') || _selectedTime.contains('PM') 
+        "booking_time":
+            _selectedTime.contains('AM') || _selectedTime.contains('PM')
             ? _selectedTime // Should ideally be formatted to HH:mm:ss if possible, but let's see backend handling
             : "00:00:00", // Emergency fallback
         "service_type": widget.serviceType.toUpperCase(),

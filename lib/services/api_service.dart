@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
+  // // Localhost
+  // static const String baseUrl = "http://192.168.1.2:5000";
+
   // Hosted Server
   static const String baseUrl = "http://3.110.153.144:5000";
 

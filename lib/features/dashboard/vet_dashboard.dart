@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import "package:intl/intl.dart";
 
 class VetDashboard extends StatefulWidget {
   const VetDashboard({super.key});
@@ -65,6 +66,15 @@ class _VetDashboardState extends State<VetDashboard> {
         bookings = bksData;
         todaysAppts = todayApptsList.take(3).toList();
         todayApptsCount = todayApptsList.length;
+
+        DateFormat format = DateFormat("h:mm a");
+        String startStr = dashData['availability']['availability_start'] ?? '9:00 AM';
+        String endStr = dashData['availability']['availability_end'] ?? '5:00 PM';
+
+        Availability.startTime = format.parse(startStr);
+        Availability.endTime = format.parse(endStr);
+        print("startTime ${Availability.startTime}");
+        print("endTime ${Availability.endTime}");
 
         List<Map<String, String>> parsedEarnings = [];
         if (dashData['earningsHistory'] != null) {
@@ -253,13 +263,6 @@ class _VetActionGridState extends State<_VetActionGrid> {
       crossAxisSpacing: 20,
       children: [
         ActionCard(
-          icon: Icons.schedule,
-          iconColor: Colors.blue,
-          title: "Schedule",
-          subtitle: "Manage your availability",
-          onTap: () => _showScheduleDialog(context),
-        ),
-        ActionCard(
           icon: Icons.calendar_month,
           iconColor: Colors.purple,
           title: "Bookings",
@@ -346,7 +349,7 @@ class _VetActionGridState extends State<_VetActionGrid> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => _AllBookingsSheet(bookings: widget.bookings),
+      builder: (context) => _AllBookingsSheet(bookings: widget.bookings, onStatusUpdated: widget.onRefresh,),
     );
   }
 
@@ -756,7 +759,9 @@ class _ScheduleItem extends StatelessWidget {
 
 class _AllBookingsSheet extends StatelessWidget {
   final List<dynamic> bookings;
-  const _AllBookingsSheet({required this.bookings});
+  final VoidCallback onStatusUpdated;
+
+  const _AllBookingsSheet({required this.bookings, required this.onStatusUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -876,6 +881,48 @@ class _AllBookingsSheet extends StatelessWidget {
                                 ),
                               ],
                             ),
+                            if(status == 'pending')
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () => _updateStatus(
+                                        context,
+                                        booking['id'],
+                                        'COMPLETED',
+                                      ).then((value) => Navigator.pop(context)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: const Text("Complete"),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () => _updateStatus(
+                                        context,
+                                        booking['id'],
+                                        'REJECTED',
+                                      ).then((value) => Navigator.pop(context),),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        side: const BorderSide(color: Colors.red),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: const Text("Reject"),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
                           ],
                         ),
                       );
@@ -886,6 +933,27 @@ class _AllBookingsSheet extends StatelessWidget {
       ),
     );
   }
+
+
+  Future<void> _updateStatus(
+      BuildContext context,
+      int bookingId,
+      String status,
+      ) async {
+    try {
+      await ApiService.updateBookingStatus(bookingId, status);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Booking $status")));
+      onStatusUpdated();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+
 }
 
 class _VisitSummarySheet extends StatefulWidget {
@@ -1464,6 +1532,7 @@ class _AvailabilitySheet extends StatefulWidget {
 }
 
 class _AvailabilitySheetState extends State<_AvailabilitySheet> {
+
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 17, minute: 0);
 
@@ -1497,6 +1566,16 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
   }
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    // Use Availability.startTime to set the initial time
+    _startTime = TimeOfDay.fromDateTime(Availability.startTime);
+    _endTime = TimeOfDay.fromDateTime(Availability.endTime);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.6,
@@ -1526,10 +1605,6 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                ),
-                Text(
-                  "Week: ${DateFormat('MMM d').format(widget.weekStart)} - ${DateFormat('MMM d').format(widget.weekStart.add(const Duration(days: 6)))}",
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -2069,4 +2144,9 @@ class _StatItem extends StatelessWidget {
       ],
     );
   }
+}
+
+class Availability { // startTime and endTime
+  static DateTime startTime = DateTime.now();
+  static DateTime endTime = DateTime.now().add(const Duration(hours: 1));
 }
